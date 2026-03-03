@@ -1,0 +1,409 @@
+---
+title: Resolution Scaling
+description: Understanding resolution options and how Hydra scales Nintendo Switch graphics
+---
+
+Hydra supports rendering games at higher resolutions than the original Nintendo Switch hardware, providing sharper visuals on modern displays.
+
+## Available Resolution Options
+
+Hydra offers multiple resolution presets plus custom resolution support:
+
+<CodeGroup>
+```cpp src/common/config.hpp
+enum class Resolution : u32 {
+    Invalid = 0,
+    
+    Auto,        // Automatic based on window/display
+    _720p,       // 1280x720 (Native handheld)
+    _1080p,      // 1920x1080 (Full HD)
+    _1440p,      // 2560x1440 (2K/QHD)
+    _2160p,      // 3840x2160 (4K/UHD)
+    _4320p,      // 7680x4320 (8K)
+    AutoExact,   // Exact window size
+    Custom,      // User-defined resolution
+};
+```
+</CodeGroup>
+
+<CardGroup cols={3}>
+  <Card title="720p" icon="1">
+    1280 x 720
+    
+    Native Switch handheld resolution
+  </Card>
+  <Card title="1080p" icon="2">
+    1920 x 1080
+    
+    Full HD, native Switch docked
+  </Card>
+  <Card title="1440p" icon="3">
+    2560 x 1440
+    
+    2K/QHD, great for gaming monitors
+  </Card>
+  <Card title="2160p" icon="4">
+    3840 x 2160
+    
+    4K Ultra HD
+  </Card>
+  <Card title="4320p" icon="8">
+    7680 x 4320
+    
+    8K (experimental)
+  </Card>
+  <Card title="Custom" icon="sliders">
+    Any resolution
+    
+    User-defined dimensions
+  </Card>
+</CardGroup>
+
+## How Resolution Scaling Works
+
+Hydra scales game rendering through multiple stages:
+
+<Steps>
+  <Step title="Game Renders to Virtual Framebuffer">
+    The game renders at its intended resolution (720p or 1080p)
+  </Step>
+  <Step title="Resolution Scaling Applied">
+    Hydra's renderer scales the output to the target resolution
+  </Step>
+  <Step title="Display Composition">
+    The scaled image is composed for the host display
+  </Step>
+  <Step title="Final Presentation">
+    The frame is presented through Metal to the display
+  </Step>
+</Steps>
+
+### Resolution Selection Logic
+
+The emulator determines the final resolution based on your settings:
+
+```cpp src/core/horizon/os.cpp
+uint2 round_up_to_nearest_standard_resolution(uint2 surface_resolution) {
+    static uint2 standard_resolutions[] = {
+        {1280, 720}, {1920, 1080}, {2560, 1440}, 
+        {3840, 2160}, {7680, 4320}
+    };
+    
+    for (u32 i = 0; i < sizeof_array(standard_resolutions); i++) {
+        const auto& resolution = standard_resolutions[i];
+        if (surface_resolution.x() <= resolution.x() &&
+            surface_resolution.y() <= resolution.y())
+            return resolution;
+    }
+    
+    return standard_resolutions[sizeof_array(standard_resolutions) - 1];
+}
+```
+
+<Info>
+  In `Auto` mode, Hydra rounds up to the nearest standard resolution that fits your display or window.
+</Info>
+
+## Resolution Modes
+
+<Tabs>
+  <Tab title="Auto">
+    **Automatic Resolution Selection**
+    
+    ```cpp
+    case Resolution::Auto:
+        return round_up_to_nearest_standard_resolution(surface_resolution);
+    ```
+    
+    - Automatically selects best resolution for your display
+    - Rounds up to nearest standard resolution
+    - Ideal for most users
+    - Changes with window size
+  </Tab>
+  
+  <Tab title="AutoExact">
+    **Exact Window Match**
+    
+    ```cpp
+    case Resolution::AutoExact:
+        return surface_resolution;
+    ```
+    
+    - Matches exact window dimensions
+    - No rounding to standard resolutions
+    - Good for non-standard displays
+    - Pixel-perfect window filling
+  </Tab>
+  
+  <Tab title="Fixed">
+    **Fixed Resolution (720p/1080p/etc.)**
+    
+    - Renders at specific resolution regardless of window size
+    - Consistent performance
+    - May be scaled by display
+    - Best for performance testing
+  </Tab>
+  
+  <Tab title="Custom">
+    **Custom Resolution**
+    
+    ```cpp
+    case Resolution::Custom:
+        return custom_display_resolution;
+    ```
+    
+    - User-defined width and height
+    - Maximum flexibility
+    - Good for uncommon aspect ratios
+    - Requires manual configuration
+  </Tab>
+</Tabs>
+
+## Handheld vs Docked Mode
+
+The Nintendo Switch has different display behaviors in handheld and docked modes:
+
+```cpp src/core/horizon/os.cpp
+uint2 OS::GetDisplayResolution() const {
+    if (GetAppletMode() == AppletMode::Handheld) {
+        return {1280, 720}; // Handheld display resolution is fixed
+    }
+    
+    switch (CONFIG_INSTANCE.GetDisplayResolution()) {
+        case Resolution::Auto:
+            return round_up_to_nearest_standard_resolution(surface_resolution);
+        // ... other modes
+        case Resolution::AutoExact:
+            return surface_resolution;
+    }
+}
+```
+
+<Warning>
+  **Handheld Mode**: Resolution is always locked to 720p (1280x720) to match the Switch's physical screen.
+  
+  **Docked Mode**: Resolution can be scaled up to improve visual quality.
+</Warning>
+
+## Viewport and Scaling
+
+The Metal renderer handles viewport transformation and scaling:
+
+```cpp src/core/hw/tegra_x1/gpu/engines/3d.cpp
+auto scale_x = transform.scale_x;
+auto scale_y = transform.scale_y;
+
+res.rect.origin.x() = transform.offset_x - scale_x;
+res.rect.origin.y() = transform.offset_y - scale_y;
+res.rect.size.x() = scale_x * 2.0f;
+res.rect.size.y() = scale_y * 2.0f;
+```
+
+### Aspect Ratio Handling
+
+Hydra maintains the correct aspect ratio during scaling:
+
+```cpp src/core/horizon/display/driver.cpp
+auto scale_x = f32(width) / src_size.x();
+auto scale_y = f32(height) / src_size.y();
+
+float dst_scale;
+if (scale_x > scale_y) {
+    dst_scale = scale_y;
+    const auto dst_width = src_size.x() * dst_scale;
+    // Center horizontally
+} else {
+    dst_scale = scale_x;
+    const auto dst_height = src_size.y() * dst_scale;
+    // Center vertically
+}
+```
+
+<Info>
+  The display driver automatically letterboxes or pillarboxes the image to maintain the correct aspect ratio.
+</Info>
+
+## Performance Impact
+
+Higher resolutions require more GPU processing power:
+
+<AccordionGroup>
+  <Accordion title="720p (1280x720)" icon="gauge">
+    **Performance**: Fastest
+    - Native Switch handheld resolution
+    - ~0.9 million pixels
+    - Minimal GPU load
+    - Best for integrated graphics
+    
+    **Use when**:
+    - Running on older Macs
+    - Maximizing frame rate
+    - Using integrated graphics
+  </Accordion>
+
+  <Accordion title="1080p (1920x1080)" icon="gauge-simple">
+    **Performance**: Fast
+    - Native Switch docked resolution
+    - ~2.1 million pixels (2.3x more than 720p)
+    - Moderate GPU load
+    - Good balance of quality and performance
+    
+    **Use when**:
+    - Standard gaming setup
+    - Modern Mac with decent GPU
+    - Want crisp visuals without heavy load
+  </Accordion>
+
+  <Accordion title="1440p (2560x1440)" icon="gauge-high">
+    **Performance**: Moderate
+    - 2K/QHD resolution
+    - ~3.7 million pixels (4x more than 720p)
+    - Noticeable GPU load
+    - Requires capable GPU
+    
+    **Use when**:
+    - High-end Mac with dedicated GPU
+    - QHD display
+    - Want enhanced visual quality
+  </Accordion>
+
+  <Accordion title="4K (3840x2160)" icon="gauge-max">
+    **Performance**: Heavy
+    - Ultra HD resolution
+    - ~8.3 million pixels (9x more than 720p)
+    - Significant GPU load
+    - Requires powerful GPU
+    
+    **Use when**:
+    - Mac Studio or high-end MacBook Pro
+    - 4K display
+    - GPU headroom available
+  </Accordion>
+
+  <Accordion title="8K (7680x4320)" icon="triangle-exclamation">
+    **Performance**: Very Heavy
+    - Experimental
+    - ~33.2 million pixels (36x more than 720p)
+    - Extreme GPU load
+    - Requires top-tier GPU
+    
+    **Use when**:
+    - Testing/benchmarking only
+    - Mac Studio Ultra
+    - Not recommended for actual gameplay
+  </Accordion>
+</AccordionGroup>
+
+## Visual Quality Tradeoffs
+
+<CardGroup cols={2}>
+  <Card title="Lower Resolutions (720p-1080p)" icon="bolt">
+    **Pros:**
+    - Higher frame rates
+    - Lower GPU usage
+    - Better battery life (laptops)
+    - Cooler temperatures
+    
+    **Cons:**
+    - Less sharp on large displays
+    - More visible aliasing
+    - Softer textures
+  </Card>
+  
+  <Card title="Higher Resolutions (1440p-4K)" icon="image">
+    **Pros:**
+    - Sharper image quality
+    - Better detail visibility
+    - Reduced aliasing
+    - Clearer UI elements
+    
+    **Cons:**
+    - Lower frame rates
+    - Higher GPU usage
+    - More power consumption
+    - Increased heat
+  </Card>
+</CardGroup>
+
+## Texture and Blit Scaling
+
+The Metal renderer handles texture scaling during blit operations:
+
+```cpp src/core/hw/tegra_x1/gpu/renderer/metal/renderer.cpp
+float2 scale = float2(
+    src_rect.size.x() / src_width,
+    src_rect.size.y() / src_height
+);
+
+BlitParams params = {
+    .src_scale = scale,
+    // ...
+};
+```
+
+## Recommended Settings
+
+<Steps>
+  <Step title="For Best Performance">
+    - Resolution: **720p** or **1080p**
+    - Mode: Fixed resolution
+    - Good for: Older Macs, integrated graphics, battery life
+  </Step>
+  
+  <Step title="For Balanced Quality">
+    - Resolution: **Auto** or **1080p**
+    - Let Hydra choose appropriate resolution
+    - Good for: Most users, modern Macs
+  </Step>
+  
+  <Step title="For Maximum Quality">
+    - Resolution: **1440p** or **4K**
+    - Requires powerful GPU
+    - Good for: High-end Macs, 4K displays, screenshots
+  </Step>
+</Steps>
+
+## Configuration
+
+Set your resolution preference in the configuration:
+
+```toml config.toml
+[graphics]
+display_resolution = "1080p"  # or "auto", "720p", "1440p", "2160p", "custom"
+
+# For custom resolution:
+# display_resolution = "custom"
+# custom_display_resolution = [2560, 1440]
+```
+
+<Tip>
+  Start with `Auto` mode and adjust based on your display and performance requirements.
+</Tip>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Performance Issues" icon="gauge-simple-low">
+    If experiencing low frame rates:
+    1. Lower the resolution (try 1080p or 720p)
+    2. Check GPU usage in Activity Monitor
+    3. Close other GPU-intensive applications
+    4. Ensure your Mac isn't thermal throttling
+  </Accordion>
+
+  <Accordion title="Blurry Image" icon="eye-slash">
+    If the image looks blurry:
+    - Increase resolution to match your display
+    - Use `AutoExact` mode for pixel-perfect scaling
+    - Check your display's native resolution
+    - Some games may have internal resolution limits
+  </Accordion>
+
+  <Accordion title="Black Bars" icon="rectangle-vertical">
+    Black bars around the image:
+    - This is normal for aspect ratio preservation
+    - Switch games run at 16:9 aspect ratio
+    - Ultra-wide displays will show pillarboxing
+    - Cannot be removed without distorting the image
+  </Accordion>
+</AccordionGroup>

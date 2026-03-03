@@ -1,0 +1,350 @@
+---
+title: Audio
+description: Learn about Hydra's audio system powered by the Cubeb backend
+---
+
+Hydra's audio system emulates the Nintendo Switch's audio hardware and outputs sound through the Cubeb cross-platform audio library.
+
+## Audio Architecture
+
+The audio subsystem consists of multiple layers that work together to deliver game audio:
+
+<Steps>
+  <Step title="Guest Audio Services">
+    Nintendo Switch OS audio services (audren, audout) interface with games
+  </Step>
+  <Step title="Audio Renderer">
+    Processes audio effects, mixing, and voice management
+  </Step>
+  <Step title="Cubeb Backend">
+    Outputs processed audio to the host system's audio hardware
+  </Step>
+</Steps>
+
+## Cubeb Audio Backend
+
+Cubeb is a cross-platform audio library that provides low-latency audio output across different operating systems.
+
+<CardGroup cols={2}>
+  <Card title="Cross-Platform" icon="desktop">
+    Works on macOS, Linux, and Windows
+  </Card>
+  <Card title="Low Latency" icon="gauge-high">
+    Minimal delay between audio generation and playback
+  </Card>
+  <Card title="Async Processing" icon="rotate">
+    Audio processing runs on dedicated threads
+  </Card>
+  <Card title="Multiple Formats" icon="waveform-lines">
+    Supports various sample rates and channel configurations
+  </Card>
+</CardGroup>
+
+### Why Cubeb?
+
+<Info>
+  Cubeb was chosen for its excellent macOS support, low latency characteristics, and proven track record in emulation projects like Firefox and other emulators.
+</Info>
+
+## Audio Services
+
+Hydra implements the Nintendo Switch's audio service interfaces:
+
+### Audio Renderer (audren)
+
+The audio renderer service handles complex audio operations including:
+
+<AccordionGroup>
+  <Accordion title="Voice Management" icon="microphone">
+    The audio renderer manages multiple audio voices (sound sources) with individual properties:
+    
+    ```cpp src/core/horizon/services/audio/audio_renderer.cpp
+    struct VoiceInfoIn {
+        u32 id;
+        u32 node_id;
+        bool is_new;
+        bool is_used;
+        VoicePlayState play_state;
+        PcmFormat sample_format : 8;
+        u32 sample_rate;
+        u32 priority;
+        f32 pitch;
+        f32 volume;
+        BiquadFilter biquads[2];
+        u32 wave_buffer_count;
+        WaveBuffer wave_buffers[4];
+        u32 channel_count;
+    };
+    ```
+    
+    Each voice can have:
+    - Custom sample rate and format
+    - Volume and pitch control
+    - Biquad filters for audio effects
+    - Multiple wave buffers for streaming
+  </Accordion>
+
+  <Accordion title="Audio Mixing" icon="sliders">
+    Multiple audio sources are mixed together:
+    - Per-voice volume control
+    - Channel mixing and routing
+    - Effect processing
+    - Final master mix output
+  </Accordion>
+
+  <Accordion title="Effects Processing" icon="wand-magic-sparkles">
+    The renderer supports various audio effects:
+    
+    ```cpp
+    struct BiquadFilter {
+        bool enable;
+        i16 numerator[3];
+        i16 denominator[2];
+    };
+    ```
+    
+    Effects include:
+    - Reverb
+    - Delay
+    - Biquad filtering (EQ, lowpass, highpass)
+  </Accordion>
+
+  <Accordion title="Memory Pools" icon="database">
+    Audio data is managed through memory pools:
+    
+    ```cpp
+    enum class MemPoolState : u32 {
+        Invalid,
+        New,
+        RequestDetach,
+        Detached,
+        RequestAttach,
+        Attached,
+        Released,
+    };
+    ```
+    
+    This allows efficient management of audio sample data.
+  </Accordion>
+</AccordionGroup>
+
+### Audio Output (audout)
+
+The audio output service provides simpler PCM audio output:
+
+```cpp
+class IAudioOut {
+  public:
+    // Start/stop audio playback
+    result_t Start();
+    result_t Stop();
+    
+    // Append audio buffers
+    result_t AppendAudioBuffer(...);
+    
+    // Get released buffers
+    result_t GetReleasedAudioBuffer(...);
+};
+```
+
+<Info>
+  Most games use the audio renderer service for its advanced features, while simpler applications may use audio output directly.
+</Info>
+
+## Audio Formats
+
+Hydra supports multiple PCM audio formats:
+
+<Tabs>
+  <Tab title="PCM16">
+    16-bit signed integer samples
+    - Most common format
+    - Good balance of quality and performance
+    - Native format for many games
+  </Tab>
+  
+  <Tab title="PCM32">
+    32-bit signed integer samples
+    - Higher precision
+    - Used for audio processing
+    - More CPU intensive
+  </Tab>
+  
+  <Tab title="Float">
+    32-bit floating point samples
+    - Highest precision
+    - Used internally for mixing
+    - Best for effects processing
+  </Tab>
+</Tabs>
+
+## Wave Buffers
+
+Audio data is streamed through wave buffers:
+
+```cpp
+struct WaveBuffer {
+    vaddr_t address;              // Sample data address
+    u64 size;                     // Buffer size in bytes
+    u32 start_sample_offset;      // Where to start playing
+    u32 end_sample_offset;        // Where to stop playing
+    bool is_looping;              // Loop this buffer?
+    bool end_of_stream;           // Last buffer in stream?
+    vaddr_t context_addr;         // Optional context data
+};
+```
+
+<AccordionGroup>
+  <Accordion title="Streaming Playback" icon="forward">
+    Games queue multiple wave buffers for continuous playback:
+    - Up to 4 wave buffers per voice
+    - Automatic progression through buffers
+    - Seamless looping support
+  </Accordion>
+
+  <Accordion title="Loop Support" icon="repeat">
+    Wave buffers can loop automatically:
+    
+    ```cpp
+    buffer.is_looping = true;
+    ```
+    
+    Perfect for background music and ambient sounds.
+  </Accordion>
+</AccordionGroup>
+
+## Audio Processing Thread
+
+The audio renderer runs on a dedicated thread to ensure consistent timing:
+
+```cpp src/core/horizon/services/audio/audio_renderer.cpp
+IAudioRenderer::IAudioRenderer(const AudioRendererParameters& params_,
+                               const usize work_buffer_size_)
+    : params{params_}, work_buffer_size{work_buffer_size_},
+      event{new kernel::Event(false, "IAudioRenderer event")} {
+    voices.resize(params.voice_count);
+    
+    // Audio processing thread
+    new std::thread([&]() {
+        GET_CURRENT_PROCESS_DEBUGGER().RegisterThisThread("Audren signal");
+        while (true) {
+            event->Signal();
+            std::this_thread::sleep_for(std::chrono::microseconds(2));
+        }
+    });
+}
+```
+
+<Warning>
+  The audio thread runs at high frequency (every 2 microseconds) to maintain synchronization with the game's audio processing.
+</Warning>
+
+## Performance Monitoring
+
+The audio system tracks performance metrics:
+
+```cpp
+struct RenderInfoOut {
+    u64 elapsed_frame_count;  // Number of audio frames processed
+    u64 _reserved;
+};
+
+struct PerformanceInfoOut {
+    u32 history_size;         // Performance history buffer size
+    u32 _reserved[3];
+};
+```
+
+## Audio Quality Settings
+
+While Hydra aims for accurate audio emulation, there are some considerations:
+
+<CardGroup cols={2}>
+  <Card title="Sample Rate" icon="wave-square">
+    Nintendo Switch games typically use 48kHz audio, which is passed through to the host system
+  </Card>
+  
+  <Card title="Channel Count" icon="speakers">
+    Supports mono, stereo, and surround sound configurations
+  </Card>
+  
+  <Card title="Buffer Size" icon="memory">
+    Larger buffers reduce stuttering but increase latency
+  </Card>
+  
+  <Card title="Threading" icon="layer-group">
+    Dedicated audio threads prevent interference from emulation hiccups
+  </Card>
+</CardGroup>
+
+## Latency Considerations
+
+<Steps>
+  <Step title="Game Audio Generation">
+    The game generates audio samples based on gameplay
+  </Step>
+  <Step title="Audio Renderer Processing">
+    Samples are processed, mixed, and effects applied (1-2ms)
+  </Step>
+  <Step title="Cubeb Buffering">
+    Processed audio is buffered by Cubeb (5-10ms typical)
+  </Step>
+  <Step title="System Audio Output">
+    macOS audio system plays the audio (varies by hardware)
+  </Step>
+</Steps>
+
+<Info>
+  Total latency is typically 10-20ms, which is imperceptible for most gaming scenarios.
+</Info>
+
+## Configuration
+
+The audio backend can be configured in the settings:
+
+<Tabs>
+  <Tab title="Cubeb">
+    Full audio emulation with the Cubeb backend
+    - **Recommended** for normal gameplay
+    - Low latency
+    - High quality
+  </Tab>
+  
+  <Tab title="Null">
+    Disables audio output entirely
+    - Useful for debugging
+    - Slightly better performance
+    - No sound output
+  </Tab>
+</Tabs>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="No Audio Output" icon="volume-xmark">
+    If you don't hear any audio:
+    1. Check that `audio_backend` is set to `Cubeb` in config
+    2. Verify macOS audio output is working
+    3. Check the game's audio settings
+    4. Try restarting the emulator
+  </Accordion>
+
+  <Accordion title="Audio Crackling" icon="volume-slash">
+    If audio crackles or stutters:
+    - System may be under heavy load
+    - Try closing other applications
+    - Check CPU usage
+    - Some games may have audio timing issues
+  </Accordion>
+
+  <Accordion title="Audio Delay" icon="clock">
+    If audio is delayed:
+    - This is usually imperceptible (10-20ms)
+    - Cannot be reduced below system audio latency
+    - Check macOS audio settings for buffer size
+  </Accordion>
+</AccordionGroup>
+
+<Tip>
+  For the best audio experience, use the Cubeb backend and ensure your Mac is not under heavy CPU load.
+</Tip>

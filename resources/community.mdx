@@ -1,0 +1,313 @@
+---
+title: 'Community & Support'
+description: 'Connect with the Hydra community, get help, and contribute to development'
+---
+
+## Get Involved
+
+Hydra is an open-source project that thrives on community involvement. Whether you're looking for help, want to report a bug, or interested in contributing, there are several ways to engage with the project.
+
+## Community Resources
+
+<CardGroup cols={2}>
+  <Card
+    title="GitHub Repository"
+    icon="github"
+    href="https://github.com/SamoZ256/hydra"
+  >
+    View source code, report issues, and contribute to development on the official repository
+  </Card>
+  
+  <Card
+    title="Discord Server"
+    icon="discord"
+    href="https://discord.gg/FZ742SWv8f"
+  >
+    Join the official Discord for real-time discussions, support, and development updates
+  </Card>
+  
+  <Card
+    title="GitHub Issues"
+    icon="bug"
+    href="https://github.com/SamoZ256/hydra/issues"
+  >
+    Report bugs, request features, and track known issues
+  </Card>
+  
+  <Card
+    title="GitHub Releases"
+    icon="download"
+    href="https://github.com/SamoZ256/hydra/releases/latest"
+  >
+    Download the latest stable release and view changelog
+  </Card>
+</CardGroup>
+
+## Getting Help
+
+If you're experiencing issues or have questions about Hydra:
+
+### Discord Community
+
+The [Discord server](https://discord.gg/FZ742SWv8f) is the best place for:
+
+- Quick questions and troubleshooting
+- Real-time support from community members
+- Development discussions
+- Feature suggestions and feedback
+- Casual conversation about Switch emulation
+
+### GitHub Discussions
+
+For longer-form discussions, use [GitHub](https://github.com/SamoZ256/hydra):
+
+- General questions about usage
+- Configuration help
+- Sharing tips and tricks
+- Compatibility reports
+- Technical discussions
+
+### Documentation
+
+Before asking for help, check the documentation:
+
+- [Quick Start Guide](/quickstart) - Get started with Hydra
+- [Building from Source](/dev/building) - Build from source
+- [FAQ](/resources/faq) - Common questions answered
+- [Compatibility](/resources/compatibility) - Game compatibility information
+
+## Reporting Bugs
+
+Found a bug? Your reports help improve Hydra for everyone.
+
+### Before Reporting
+
+<Steps>
+  <Step title="Search Existing Issues">
+    Check if someone has already reported the same issue on [GitHub Issues](https://github.com/SamoZ256/hydra/issues)
+  </Step>
+  
+  <Step title="Verify the Issue">
+    Ensure you're using the latest version and that the issue is reproducible
+  </Step>
+  
+  <Step title="Gather Information">
+    Collect relevant details: error messages, logs, system specs, and steps to reproduce
+  </Step>
+</Steps>
+
+### Creating a Bug Report
+
+When opening a new issue, include:
+
+<AccordionGroup>
+  <Accordion title="System Information">
+    - macOS version (e.g., macOS 14.0 Sonoma)
+    - Hardware specs (CPU, GPU, RAM)
+    - Mac model (e.g., MacBook Pro M2, iMac Intel)
+  </Accordion>
+  
+  <Accordion title="Hydra Information">
+    - Hydra version or commit hash
+    - Build configuration (SDL3 or SwiftUI frontend)
+    - Installation method (release binary or built from source)
+  </Accordion>
+  
+  <Accordion title="Issue Description">
+    - Clear description of the problem
+    - Expected behavior vs. actual behavior
+    - When the issue occurs (startup, during gameplay, etc.)
+  </Accordion>
+  
+  <Accordion title="Reproduction Steps">
+    - Step-by-step instructions to reproduce the issue
+    - Specific game or homebrew app affected
+    - Configuration settings used
+  </Accordion>
+  
+  <Accordion title="Additional Context">
+    - Error messages or crash logs
+    - Screenshots or videos demonstrating the issue
+    - Related issues or similar problems
+  </Accordion>
+</AccordionGroup>
+
+<Card
+  title="Report a Bug"
+  icon="circle-exclamation"
+  href="https://github.com/SamoZ256/hydra/issues/new"
+>
+  Open a new issue on GitHub to report bugs and compatibility problems
+</Card>
+
+## Contributing
+
+Contributions are very welcome! Whether you're a developer, designer, or documentation writer, there are many ways to contribute.
+
+### Ways to Contribute
+
+<CardGroup cols={2}>
+  <Card title="Code Contributions" icon="code">
+    Submit pull requests with bug fixes, new features, or performance improvements
+  </Card>
+  
+  <Card title="Testing" icon="vial">
+    Test games and report compatibility issues with detailed information
+  </Card>
+  
+  <Card title="Documentation" icon="book">
+    Improve documentation, write guides, or translate content
+  </Card>
+  
+  <Card title="Community Support" icon="comments">
+    Help other users on Discord or GitHub Discussions
+  </Card>
+</CardGroup>
+
+### Development Workflow
+
+1. **Fork the Repository**
+   
+   Fork [SamoZ256/hydra](https://github.com/SamoZ256/hydra) to your GitHub account
+
+2. **Clone Your Fork**
+   
+   ```bash
+   git clone https://github.com/YOUR_USERNAME/hydra.git
+   cd hydra
+   git submodule update --init --recursive
+   ```
+
+3. **Create a Branch**
+   
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+
+4. **Make Your Changes**
+   
+   Write code, add tests, and update documentation as needed
+
+5. **Test Your Changes**
+   
+   Build and test locally to ensure everything works:
+   
+   ```bash
+   cmake . -B build -G Ninja -DMACOS_BUNDLE=ON
+   ninja -C build
+   ```
+
+6. **Commit and Push**
+   
+   ```bash
+   git add .
+   git commit -m "Description of your changes"
+   git push origin feature/your-feature-name
+   ```
+
+7. **Open a Pull Request**
+   
+   Go to the original repository and open a pull request from your branch
+
+### Contribution Guidelines
+
+<Note>
+While there's no formal CONTRIBUTING.md file in the repository, following these best practices will help your contributions get accepted:
+</Note>
+
+- **Code Quality**: Write clean, readable code following the project's style
+- **Testing**: Test your changes thoroughly before submitting
+- **Documentation**: Update docs if you add or change features
+- **Commit Messages**: Write clear, descriptive commit messages
+- **Discussion**: For major changes, discuss on Discord or GitHub first
+- **Pull Requests**: Keep PRs focused on a single issue or feature
+
+### Getting Started with Development
+
+New to Hydra development? Start here:
+
+1. Read the [Building from Source](/dev/building) to set up your build environment
+2. Browse [open issues](https://github.com/SamoZ256/hydra/issues) for beginner-friendly tasks
+3. Join the [Discord server](https://discord.gg/FZ742SWv8f) to ask questions
+4. Review existing pull requests to understand the review process
+5. Start with small improvements or bug fixes to get familiar with the codebase
+
+## Project Information
+
+### Repository
+
+[SamoZ256/hydra](https://github.com/SamoZ256/hydra) - Official GitHub repository
+
+### Statistics
+
+- **Stars**: 379+ on GitHub
+- **License**: GPL-3.0 (GNU General Public License v3.0)
+- **Platform**: macOS only
+- **Status**: Experimental / Early Development
+
+### License
+
+Hydra is released under the **GPL-3.0** license. This means:
+
+<Info>
+- You can freely use, modify, and distribute the software
+- Any modifications must also be released under GPL-3.0
+- The software is provided as-is with no warranty
+- See the full [LICENSE](https://github.com/SamoZ256/hydra/blob/main/LICENSE) for details
+</Info>
+
+### Related Projects
+
+Tools that complement Hydra:
+
+<CardGroup cols={2}>
+  <Card
+    title="hydra-patches"
+    icon="bandage"
+    href="https://github.com/SamoZ256/hydra-patches"
+  >
+    Game patches required to prevent crashes in official games
+  </Card>
+  
+  <Card
+    title="switch-extract-macos"
+    icon="file-zipper"
+    href="https://github.com/SamoZ256/switch-extract-macos"
+  >
+    Convert NSP to NCA and decrypt firmware files
+  </Card>
+  
+  <Card
+    title="herakles"
+    icon="arrows-rotate"
+    href="https://github.com/SamoZ256/herakles"
+  >
+    Convert NSP files to NX format
+  </Card>
+</CardGroup>
+
+## Stay Updated
+
+Keep up with the latest Hydra developments:
+
+- **Watch** the repository on GitHub for notifications
+- **Star** the project to show support and stay informed
+- **Join Discord** for immediate updates and announcements
+- **Check Releases** for new versions and changelogs
+
+<Warning>
+Remember: Hydra is experimental software. Expect bugs, crashes, and frequent changes. Always use the latest version for the best experience.
+</Warning>
+
+## Code of Conduct
+
+When participating in the Hydra community:
+
+- Be respectful and constructive
+- Help others when you can
+- Follow Discord and GitHub community guidelines
+- Report issues professionally with helpful details
+- Credit others for their contributions
+- Focus on improving the emulator for everyone
+
+Thank you for being part of the Hydra community!

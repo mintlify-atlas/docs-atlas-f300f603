@@ -1,0 +1,323 @@
+---
+title: Running Games
+description: Learn how to load and run Nintendo Switch games in Hydra
+---
+
+Hydra supports multiple Nintendo Switch game formats and loading methods. This guide covers everything you need to know about loading and running games.
+
+## Supported Game Formats
+
+Hydra's loader system supports the following formats:
+
+<CardGroup cols={2}>
+  <Card title="NRO Files" icon="file">
+    Nintendo Relocatable Object files (homebrews)
+  </Card>
+  <Card title="NCA Files" icon="file-archive">
+    Nintendo Content Archive (official games)
+  </Card>
+  <Card title="Loader Plugins" icon="puzzle-piece">
+    Extended format support via plugins
+  </Card>
+</CardGroup>
+
+### NRO (Nintendo Relocatable Object)
+
+Homebrew applications and standalone executables.
+
+**File extension:** `.nro`
+
+**Characteristics:**
+- Commonly used for homebrew
+- Self-contained executable format
+- Does not require installation
+- Can be launched directly
+
+**Loading NRO files:**
+1. Add the directory containing your NRO files to game paths
+2. Or use **File > Load from file** (⌘+L)
+
+### NCA (Nintendo Content Archive)
+
+Official game format used by the Nintendo Switch.
+
+**File extension:** `.nca`
+
+**Characteristics:**
+- Official game format
+- May contain different content types:
+  - Program (executable)
+  - Control (metadata/icons)
+  - Data (RomFS)
+  - Meta
+- Requires proper firmware for some games
+
+**Loading NCA files:**
+1. Extract firmware files to your firmware directory
+2. Add NCA files to a game path
+3. Hydra will automatically detect and list compatible games
+
+<Note>
+  Only Program-type NCAs can be launched. Control and Data NCAs are used for metadata and assets.
+</Note>
+
+## Loading Methods
+
+<Tabs>
+  <Tab title="Game Library">
+    The recommended way to manage and launch games.
+    
+    ### Setting Up Game Paths
+    
+    1. Open **Settings** (⌘+,)
+    2. Go to **General** tab
+    3. Add directories containing your games
+    4. Games will automatically appear in the library
+    
+    ### Launching from Library
+    
+    - **Grid View**: Click on a game tile
+    - **List View**: Double-click a game entry
+    
+    The game library shows:
+    - Game icon (if available)
+    - Game title
+    - Author/Publisher
+    - Version number
+  </Tab>
+  
+  <Tab title="Load from File">
+    Load a game file directly without adding to library.
+    
+    **Keyboard shortcut:** ⌘+L
+    
+    **Menu:** File > Load from file
+    
+    This method:
+    - Opens a file picker
+    - Loads the game immediately
+    - Does not add to permanent game library
+    
+    Useful for testing or one-time launches.
+  </Tab>
+  
+  <Tab title="Load from Firmware">
+    Launch system applets from installed firmware.
+    
+    **Menu:** File > Load from firmware
+    
+    Available applets depend on your firmware installation and may include:
+    - System settings
+    - Album viewer
+    - User management
+    - Other system applications
+    
+    <Warning>
+      Requires firmware to be properly installed in the firmware path.
+    </Warning>
+  </Tab>
+</Tabs>
+
+## Game Information
+
+Hydra extracts metadata from game files:
+
+### NACP (Nintendo Application Control Property)
+
+Contains game metadata:
+- **Title** - Game name in multiple languages
+- **Author** - Publisher name
+- **Display Version** - Version string (e.g., "1.0.0")
+- **Icon** - Game icon image
+
+### Title ID
+
+Each game has a unique 64-bit Title ID used for:
+- Save data organization
+- Update/DLC management
+- Content identification
+
+<Info>
+  If a game lacks NACP data, Hydra will use the filename as the title and "Unknown" as the author.
+</Info>
+
+## Extracting Game Content
+
+Hydra can extract various components from game files:
+
+<Accordion title="Extract Icon">
+  
+Right-click a game and select **Extract Icon** to save the game icon to a file.
+
+**Available when:** Game contains icon data
+
+**Format:** JPEG/PNG (depending on source)
+
+</Accordion>
+
+<Accordion title="Extract ExeFS">
+  
+Extracts the executable filesystem containing:
+- Main executable
+- Subsdk libraries
+- RomFS (if bundled)
+
+**Available when:** Game contains ExeFS data
+
+</Accordion>
+
+<Accordion title="Extract RomFS">
+  
+Extracts the read-only filesystem containing:
+- Game assets
+- Data files
+- Resources
+
+**Available when:** Game contains RomFS data
+
+</Accordion>
+
+## Save Data Management
+
+Save data is stored per-user and per-game:
+
+### Save Location
+
+```
+{save_path}/
+  └── {title_id}/
+      └── {user_id}/
+```
+
+**Default save path:**
+- macOS: `~/Library/Application Support/Hydra/save/`
+- Linux: `~/.config/Hydra/save/`
+- Windows: `%APPDATA%/Hydra/save/`
+
+### Managing Saves
+
+**Backing up saves:**
+1. Navigate to the save directory
+2. Copy the relevant `{title_id}` folder
+
+**Restoring saves:**
+1. Place save folder in `{save_path}/{title_id}/`
+2. Ensure the user ID matches
+
+**Transferring saves:**
+Saves are portable between Hydra installations - just copy the title ID folder.
+
+<Warning>
+  Always back up save data before major updates or testing.
+</Warning>
+
+## Performance Optimization
+
+<Steps>
+  <Step title="Use Apple Hypervisor">
+    On macOS, ensure CPU backend is set to "Apple Hypervisor" for best performance.
+    
+    **Settings > CPU > CPU backend**
+  </Step>
+  
+  <Step title="Set Appropriate Resolution">
+    Higher resolutions require more GPU power:
+    - Start with "Auto" (recommended)
+    - Lower to 720p or 1080p if experiencing slowdown
+    
+    **Settings > Graphics > Display resolution**
+  </Step>
+  
+  <Step title="Enable Cubeb Audio">
+    Use Cubeb for best audio performance unless debugging.
+    
+    **Settings > Audio > Audio backend**
+  </Step>
+  
+  <Step title="Close Other Applications">
+    Emulation is CPU and GPU intensive - close unnecessary applications for best performance.
+  </Step>
+</Steps>
+
+## Game Compatibility
+
+### Factors Affecting Compatibility
+
+<Accordion title="Firmware Requirements">
+  
+Some games require specific firmware versions or system files:
+- Fonts (Chinese, Japanese, Korean)
+- System archives
+- Time zone data
+- Avatar images
+
+See the [Firmware guide](/guide/firmware) for installation instructions.
+
+</Accordion>
+
+<Accordion title="System Modules">
+  
+Games may require system modules (sysmodules) placed in:
+```
+{sysmodules_path}/
+```
+
+</Accordion>
+
+<Accordion title="Updates and DLC">
+  
+Game updates and DLC are handled as separate content:
+- Updates: Installed to the game directory
+- DLC: Requires proper content ID matching
+
+<Note>
+  Update and DLC support may vary by game.
+</Note>
+
+</Accordion>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Game doesn't appear in library">
+    **Check:**
+    - Game path is correctly added in Settings
+    - File has supported extension (.nro, .nca)
+    - File is not corrupted
+    
+    **Try:**
+    - Restart Hydra to refresh library
+    - Use "Load from file" to test directly
+  </Accordion>
+  
+  <Accordion title="Game crashes on launch">
+    **Check:**
+    - Firmware is installed (for NCA games)
+    - Log files for error messages
+    - Game is compatible with Hydra
+    
+    See [Troubleshooting guide](/guide/troubleshooting) for detailed steps.
+  </Accordion>
+  
+  <Accordion title="Black screen or graphics issues">
+    **Try:**
+    - Switch shader backend to MSL
+    - Lower display resolution
+    - Check log files for GPU errors
+  </Accordion>
+</AccordionGroup>
+
+## Keyboard Shortcuts
+
+While playing games:
+
+| Shortcut | Action |
+|----------|--------|
+| ⌘+T | Take Screenshot |
+| ⌘+O | Switch handheld/docked mode |
+| ⌘+P | Capture GPU frame (debug) |
+| ESC | Stop emulation |
+
+<Info>
+  Screenshots are saved to the Pictures directory (platform-specific).
+</Info>

@@ -1,0 +1,282 @@
+---
+title: Building Hydra
+description: Step-by-step guide to building Hydra from source
+---
+
+## Prerequisites
+
+Before building Hydra, ensure you have the following installed on your system:
+
+### macOS Requirements
+
+- **Xcode** (14.0 or later) - Required for Apple development tools and frameworks
+- **CMake** (3.15 or later) - Build system generator
+- **Ninja** - Fast build system (recommended)
+- **Git** - For cloning the repository and submodules
+
+### Dependencies
+
+You can install the required dependencies using [Homebrew](https://brew.sh):
+
+```bash
+brew install cmake ninja sdl3 fmt
+```
+
+#### Required Dependencies
+
+- **SDL3** - For the SDL3 frontend (default on macOS)
+- **fmt** - Formatting library (will be auto-downloaded if not found)
+
+#### Bundled Dependencies
+
+The following dependencies are included as Git submodules:
+
+- **dynarmic** - ARM CPU emulator
+- **cubeb** - Cross-platform audio library
+- **hatch** - TOML configuration library
+- **libyaz0** - Yaz0 compression library
+- **nx2elf** - Nintendo Switch executable converter
+- **metal-cpp** - C++ Metal API wrapper
+- **stb** - Image and font loading libraries
+
+## Getting the Source Code
+
+<Steps>
+  <Step title="Clone the repository">
+    Clone the Hydra repository from GitHub:
+
+    ```bash
+    git clone https://github.com/SamoZ256/hydra.git
+    cd hydra
+    ```
+  </Step>
+
+  <Step title="Initialize submodules">
+    Download all the required external dependencies:
+
+    ```bash
+    git submodule update --init --recursive
+    ```
+
+    This will fetch:
+    - dynarmic (ARM CPU emulator)
+    - cubeb (audio backend)
+    - hatch (configuration library)
+    - libyaz0 (compression)
+    - nx2elf (executable converter)
+    - And other dependencies
+  </Step>
+</Steps>
+
+## Building
+
+### Standard Build (SDL3 Frontend)
+
+<Steps>
+  <Step title="Configure CMake">
+    Generate build files with Ninja:
+
+    ```bash
+    cmake . -B build -G Ninja -DMACOS_BUNDLE=ON
+    ```
+
+    This creates a macOS application bundle with the SDL3 frontend.
+  </Step>
+
+  <Step title="Build the project">
+    Compile Hydra using Ninja:
+
+    ```bash
+    ninja -C build
+    ```
+  </Step>
+
+  <Step title="Locate the application">
+    The macOS app bundle will be created at:
+
+    ```
+    build/bin/Hydra.app
+    ```
+
+    You can launch it directly or copy it to your Applications folder.
+  </Step>
+</Steps>
+
+### SwiftUI Frontend Build
+
+For a native macOS experience using SwiftUI:
+
+```bash
+cmake . -B build -G Ninja -DMACOS_BUNDLE=ON -DFRONTEND=SwiftUI
+ninja -C build
+```
+
+<Note>
+  The SwiftUI frontend requires macOS 15.0 or later, while the SDL3 frontend works with macOS 13.0+.
+</Note>
+
+## Build Configurations
+
+### Debug Build
+
+Debug builds include additional logging and debugging symbols:
+
+```bash
+cmake . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DMACOS_BUNDLE=ON
+ninja -C build
+```
+
+Debug builds automatically:
+- Define `HYDRA_DEBUG` preprocessor macro
+- Include Git commit hash in the version
+- Enable additional runtime checks
+
+### Release Build
+
+Release builds are optimized for performance:
+
+```bash
+cmake . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DMACOS_BUNDLE=ON
+ninja -C build
+```
+
+Release builds:
+- Enable compiler optimizations
+- Omit debug symbols
+- Skip Git hash in version string
+
+## Build Options
+
+### CMake Configuration Options
+
+<CodeGroup>
+```bash Frontend Selection
+# Use SDL3 frontend (default)
+-DFRONTEND=SDL3
+
+# Use SwiftUI frontend (macOS 15.0+)
+-DFRONTEND=SwiftUI
+```
+
+```bash Audio Backend
+# Enable cubeb audio (default: ON)
+-DCUBEB_ENABLED=ON
+
+# Disable cubeb audio
+-DCUBEB_ENABLED=OFF
+```
+
+```bash CPU Backend
+# Enable Hypervisor CPU backend (default: ON on macOS)
+-DHYPERVISOR_ENABLED=ON
+
+# Disable Hypervisor (uses dynarmic only)
+-DHYPERVISOR_ENABLED=OFF
+```
+
+```bash Bundle Options
+# Build as macOS app bundle
+-DMACOS_BUNDLE=ON
+
+# Build as standalone executable
+-DMACOS_BUNDLE=OFF
+```
+</CodeGroup>
+
+### Build System Requirements
+
+- **C++ Standard**: C++20 (enforced by CMake)
+- **Minimum CMake Version**: 3.15
+- **Apple Platforms**: Enables Objective-C, Objective-C++, and Swift automatically
+
+## Troubleshooting
+
+### CMake Configuration Fails
+
+**Problem**: CMake can't find dependencies
+
+**Solution**: Ensure all dependencies are installed via Homebrew:
+
+```bash
+brew install cmake ninja sdl3 fmt
+```
+
+### Submodule Errors
+
+**Problem**: Missing submodule errors during build
+
+**Solution**: Reinitialize submodules:
+
+```bash
+git submodule update --init --recursive
+```
+
+### Compilation Errors
+
+**Problem**: Compiler warnings treated as errors
+
+**Solution**: Hydra uses `-Werror` (warnings as errors). Ensure you're using a compatible Xcode/Clang version:
+
+```bash
+xcode-select --install
+```
+
+### Metal/Graphics Errors
+
+**Problem**: Metal framework linking errors
+
+**Solution**: Hydra requires macOS with Metal support. Ensure you're running on compatible hardware and macOS version.
+
+### Hypervisor Framework Errors (Apple Silicon)
+
+**Problem**: Hypervisor.framework linking fails
+
+**Solution**: Hypervisor support requires specific entitlements. Try disabling it:
+
+```bash
+cmake . -B build -G Ninja -DHYPERVISOR_ENABLED=OFF -DMACOS_BUNDLE=ON
+```
+
+### SwiftUI Build Issues
+
+**Problem**: SwiftUI frontend won't build
+
+**Solution**: Ensure you're running macOS 15.0 or later:
+
+```bash
+sw_vers
+```
+
+If on an older version, use the SDL3 frontend instead:
+
+```bash
+cmake . -B build -G Ninja -DFRONTEND=SDL3 -DMACOS_BUNDLE=ON
+```
+
+## Clean Build
+
+To perform a clean build, remove the build directory:
+
+```bash
+rm -rf build
+cmake . -B build -G Ninja -DMACOS_BUNDLE=ON
+ninja -C build
+```
+
+## Build Output
+
+After a successful build, you'll find:
+
+- **Executable**: `build/bin/Hydra.app` (when `MACOS_BUNDLE=ON`)
+- **Compile Commands**: `build/compile_commands.json` (for IDE integration)
+
+## Next Steps
+
+After building Hydra:
+
+1. **Configure**: Launch Hydra once to generate the config file at `~/Library/Application Support/Hydra/config.toml`
+2. **Setup Firmware**: Some games require decrypted firmware files
+3. **Install Patches**: Download the [patch set](https://github.com/SamoZ256/hydra-patches) for official games
+4. **Start Emulating**: Load NRO, NCA, or NX format games
+
+For more information on contributing to Hydra, see [Contributing](/dev/contributing).

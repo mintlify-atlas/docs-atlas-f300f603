@@ -1,0 +1,352 @@
+---
+title: Configuration
+description: Complete guide to configuring Hydra Nintendo Switch emulator
+---
+
+Hydra stores its configuration in a TOML file located at:
+- **macOS**: `~/Library/Application Support/Hydra/config.toml`
+- **Linux**: `~/.config/Hydra/config.toml`
+- **Windows**: `%APPDATA%/Hydra/config.toml`
+
+You can configure Hydra through the Settings window (⌘+, on macOS) or by directly editing the configuration file.
+
+## Configuration Categories
+
+<Accordion title="General Settings">
+
+### Game Paths
+
+Specify directories where Hydra should search for games.
+
+```toml
+[General]
+game_paths = [
+  "/Users/username/Games/Switch",
+  "/Volumes/External/Switch Games"
+]
+```
+
+Supported locations:
+- Folders containing game files
+- Individual game files (.nro, .nca, etc.)
+
+### Loader Plugins
+
+Extend Hydra's game loading capabilities with plugins.
+
+```toml
+[[General.loader_plugins]]
+path = "/path/to/plugin.dylib"
+
+  [General.loader_plugins.options]
+  option_key = "value"
+```
+
+### Patch Paths
+
+Directories containing game patches and mods.
+
+```toml
+patch_paths = [
+  "/Users/username/Hydra/patches"
+]
+```
+
+</Accordion>
+
+<Accordion title="CPU Settings">
+
+### CPU Backend
+
+Hydra supports two CPU emulation backends:
+
+<Tabs>
+  <Tab title="Apple Hypervisor (Recommended)">
+    **Best for:** macOS users with Apple Silicon or Intel Macs
+    
+    Uses Apple's native Hypervisor framework for near-native ARM64 execution performance.
+    
+    ```toml
+    [CPU]
+    backend = "Apple Hypervisor"
+    ```
+    
+    <Note>
+      This is the recommended and default backend on macOS when available.
+    </Note>
+  </Tab>
+  
+  <Tab title="Dynarmic">
+    **Best for:** Non-macOS platforms or when Hypervisor is unavailable
+    
+    Cross-platform ARM64 dynamic recompiler.
+    
+    ```toml
+    [CPU]
+    backend = "dynarmic"
+    ```
+    
+    <Info>
+      Dynarmic provides good compatibility but may be slower than Apple Hypervisor on macOS.
+    </Info>
+  </Tab>
+</Tabs>
+
+The backend is automatically selected based on your platform and availability.
+
+</Accordion>
+
+<Accordion title="Graphics Settings">
+
+### GPU Renderer
+
+Currently, Hydra only supports Metal rendering on macOS:
+
+```toml
+[Graphics]
+renderer = "Metal"
+```
+
+### Shader Backend
+
+Choose how shaders are compiled:
+
+<Tabs>
+  <Tab title="MSL (Recommended)">
+    **Metal Shading Language** - Recommended for best compatibility
+    
+    ```toml
+    shader_backend = "MSL"
+    ```
+  </Tab>
+  
+  <Tab title="AIR (Experimental)">
+    **Apple Intermediate Representation**
+    
+    ```toml
+    shader_backend = "AIR"
+    ```
+    
+    <Warning>
+      AIR backend is currently broken and not functional. Use MSL instead.
+    </Warning>
+  </Tab>
+</Tabs>
+
+### Display Resolution
+
+Control the rendering resolution:
+
+```toml
+display_resolution = "auto"  # Recommended
+```
+
+**Available options:**
+- `"auto"` (recommended) - Automatically scales based on game and display
+- `"720p"` - 1280x720
+- `"1080p"` - 1920x1080
+- `"1440p"` - 2560x1440
+- `"2160p"` - 3840x2160 (4K)
+- `"4320p"` - 7680x4320 (8K)
+- `"Auto exact"` - Matches game's native resolution exactly
+- `"custom"` - Specify custom resolution
+
+### Custom Resolution
+
+When using custom resolution mode:
+
+```toml
+display_resolution = "custom"
+custom_display_resolution = "2560x1440"
+```
+
+<Warning>
+  Custom resolutions are not recommended and may cause graphical issues or performance problems.
+</Warning>
+
+</Accordion>
+
+<Accordion title="Audio Settings">
+
+### Audio Backend
+
+Select the audio output backend:
+
+<Tabs>
+  <Tab title="Cubeb (Recommended)">
+    Cross-platform audio library with good compatibility
+    
+    ```toml
+    [Audio]
+    backend = "Cubeb"
+    ```
+  </Tab>
+  
+  <Tab title="Null">
+    Disables audio output
+    
+    ```toml
+    backend = "Null"
+    ```
+    
+    Useful for debugging or maximum performance.
+  </Tab>
+</Tabs>
+
+</Accordion>
+
+<Accordion title="User Settings">
+
+### User ID
+
+Each user profile has a unique ID for save data management:
+
+```toml
+[User]
+user_id = 0
+```
+
+<Info>
+  User profiles can be managed through the User settings tab. Each user can have custom avatars and nicknames.
+</Info>
+
+</Accordion>
+
+<Accordion title="System Settings">
+
+### File Paths
+
+Configure system-level paths:
+
+```toml
+[System]
+firmware_path = "/path/to/firmware"
+sd_card_path = "~/Library/Application Support/Hydra/sdmc"
+save_path = "~/Library/Application Support/Hydra/save"
+sysmodules_path = "~/Library/Application Support/Hydra/sysmodules"
+```
+
+**Path descriptions:**
+- `firmware_path` - Directory containing Switch firmware files (*.nca)
+- `sd_card_path` - Virtual SD card storage
+- `save_path` - Game save data location
+- `sysmodules_path` - System modules directory
+
+<Note>
+  SD card, save, and sysmodules paths are automatically created with default locations if not specified.
+</Note>
+
+### Operation Mode
+
+```toml
+handheld_mode = true
+```
+
+Set to `false` for docked mode. You can toggle this during emulation with **⌘+O**.
+
+</Accordion>
+
+<Accordion title="Debug Settings">
+
+### Logging
+
+Control log output:
+
+```toml
+[Debug]
+log_output = "file"  # Default
+log_fs_access = false
+debug_logging = false
+```
+
+**Log output options:**
+- `"file"` - Logs saved to `~/Library/Logs/Hydra/` (macOS)
+- `"stdout"` - Print logs to console
+- `"none"` - Disable logging (not recommended)
+
+<Warning>
+  Setting `log_output` to "none" will make troubleshooting very difficult.
+</Warning>
+
+### Error Handling
+
+```toml
+recover_from_segfault = false
+```
+
+Enable to attempt recovery from segmentation faults (experimental).
+
+### GDB Support
+
+Enable GDB debugging for development:
+
+```toml
+gdb_enabled = false
+gdb_port = 1234
+gdb_wait_for_client = false
+```
+
+<Info>
+  GDB support is intended for emulator developers and requires connecting a GDB client to debug emulated code.
+</Info>
+
+### Process Arguments
+
+Pass custom arguments to emulated processes:
+
+```toml
+process_args = []
+```
+
+</Accordion>
+
+## Configuration File Locations
+
+<CodeGroup>
+
+```bash macOS
+# Config file
+~/Library/Application Support/Hydra/config.toml
+
+# Logs
+~/Library/Logs/Hydra/
+
+# Screenshots
+~/Pictures/Hydra/
+```
+
+```bash Linux
+# Config file
+~/.config/Hydra/config.toml
+
+# Logs
+~/.config/Hydra/logs/
+
+# Screenshots  
+~/Pictures/
+```
+
+```bash Windows
+# Config file
+%APPDATA%/Hydra/config.toml
+
+# Logs
+%APPDATA%/Hydra/logs/
+
+# Screenshots
+%USERPROFILE%/Pictures/
+```
+
+</CodeGroup>
+
+## Resetting Configuration
+
+To reset Hydra to default settings:
+
+1. Close Hydra completely
+2. Delete or rename `config.toml`
+3. Restart Hydra (a new default config will be created)
+
+<Warning>
+  This will reset all settings including game paths, graphics options, and user preferences.
+</Warning>

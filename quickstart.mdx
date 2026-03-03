@@ -1,80 +1,341 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quick Start
+description: Get up and running with Hydra in minutes
 ---
 
-## Get started in three steps
+This guide will help you go from a fresh Hydra installation to running your first Nintendo Switch game.
 
-Get your documentation site running locally and make your first customization.
+## Prerequisites
 
-### Step 1: Set up your local environment
+Before starting, make sure you have:
+
+<Check>Hydra installed on your Mac ([Installation Guide](/installation))</Check>
+<Check>A Nintendo Switch game file (NRO, NCA, or NX format)</Check>
+<Check>System firmware files (required for official games) ([Firmware Guide](/guide/firmware))</Check>
+<Check>Game patches (recommended for official games) from [hydra-patches](https://github.com/SamoZ256/hydra-patches)</Check>
+
+## Loading Your First Game
+
+<Steps>
+  <Step title="Launch Hydra">
+    Open the Hydra application from your Applications folder or the build output directory.
+
+    On first launch, Hydra will create its configuration directory at:
+    ```
+    ~/Library/Application Support/Hydra/
+    ```
+
+    <Note>
+      If you built from source with `-DFRONTEND=SwiftUI`, you'll see a native macOS interface. Otherwise, you'll see the SDL3 interface.
+    </Note>
+  </Step>
+
+  <Step title="Configure Firmware (For Official Games)">
+    If you're running an official game (NCA format), you need to configure firmware files first:
+
+    1. Open the config file:
+       ```bash
+       open ~/Library/Application\ Support/Hydra/config.toml
+       ```
+
+    2. Set the firmware path:
+       ```toml
+       [System]
+       firmware_path = "/path/to/decrypted/firmware"
+       ```
+
+    3. Apply game patches from [hydra-patches](https://github.com/SamoZ256/hydra-patches) to prevent crashes
+
+    <Warning>
+      Firmware files must be decrypted. Use [switch-extract-macos](https://github.com/SamoZ256/switch-extract-macos) to extract and decrypt firmware from your Switch.
+    </Warning>
+  </Step>
+
+  <Step title="Load and Run Your Game">
+    There are two ways to load a game:
+
+    **Option 1: SDL3 Frontend**
+    - Use the file menu or drag-and-drop your game file onto the window
+    - The game will start automatically
+
+    **Option 2: SwiftUI Frontend**
+    - Click "Load Game" in the interface
+    - Navigate to your game file
+    - Select the file and click "Open"
+
+    <Info>
+      For NRO files (homebrew), no firmware is required. These will run immediately.
+    </Info>
+  </Step>
+</Steps>
+
+## Supported File Formats
+
+Hydra supports the following Nintendo Switch game formats:
+
+| Format | Type | Firmware Required | Notes |
+|--------|------|-------------------|-------|
+| **NRO** | Homebrew executable | No | Runs immediately, no setup needed |
+| **NCA** | Nintendo Content Archive | Yes | Official game format, requires firmware and patches |
+| **NX** | Packaged game | Yes | Convert NSP to NX with [herakles](https://github.com/SamoZ256/herakles) |
+| **NSO** | Nintendo Shared Object | No | Shared libraries and modules |
+
+<Warning>
+  **NSP files are not directly supported.** Convert them first:
+  - NSP → NCA: Use [switch-extract-macos](https://github.com/SamoZ256/switch-extract-macos)
+  - NSP → NX: Use [herakles](https://github.com/SamoZ256/herakles)
+</Warning>
+
+## Configuring Game Paths
+
+You can configure default game paths in the config file for easier access:
+
+```toml config.toml
+[System]
+# Path to your game library directory
+game_path = "/Users/yourname/Games/Switch"
+
+# Path to firmware files (for official games)
+firmware_path = "/Users/yourname/Switch/Firmware"
+
+# Path to save data
+sd_card_path = "~/Library/Application Support/Hydra/sdcard"
+```
+
+These paths are defined in `src/common/config.cpp:170`.
+
+## Default Controls
+
+Hydra comes with a default keyboard mapping for Switch buttons:
+
+### Keyboard Controls
+
+| Switch Button | Keyboard Key | Function |
+|--------------|--------------|----------|
+| **A** | Z | Confirm |
+| **B** | X | Back/Cancel |
+| **X** | A | Action |
+| **Y** | S | Action |
+| **L** | Q | Left bumper |
+| **R** | W | Right bumper |
+| **ZL** | 1 | Left trigger |
+| **ZR** | 2 | Right trigger |
+| **Plus** | Return | Start/Menu |
+| **Minus** | Backspace | Select |
+| **D-Pad** | Arrow Keys | Navigation |
+| **Left Stick** | WASD | Movement |
+| **Right Stick** | IJKL | Camera |
+
+<Info>
+  Controller support is available through Apple's GameController framework. Most PlayStation, Xbox, and Nintendo Pro Controllers work out of the box.
+</Info>
+
+For detailed control configuration, see the [Controls Guide](/guide/controls).
+
+## Performance Settings
+
+To get the best performance, configure these settings based on your Mac:
+
+<Tabs>
+  <Tab title="Apple Silicon (M1/M2/M3)">
+    **Recommended Settings** (`config.toml`):
+    ```toml
+    [CPU]
+    cpu_backend = "apple_hypervisor"  # Best performance on Apple Silicon
+
+    [Graphics]
+    gpu_renderer = "metal"
+    shader_backend = "air"  # Pre-compiled shaders for faster loading
+    display_resolution = "1080p"  # Or higher if your Mac supports it
+
+    [Audio]
+    audio_backend = "cubeb"
+    ```
+
+    <Tip>
+      Apple Hypervisor provides near-native ARM64 performance on Apple Silicon Macs.
+    </Tip>
+  </Tab>
+
+  <Tab title="Intel Macs">
+    **Recommended Settings** (`config.toml`):
+    ```toml
+    [CPU]
+    cpu_backend = "dynarmic"  # Required for Intel processors
+
+    [Graphics]
+    gpu_renderer = "metal"
+    shader_backend = "msl"  # Runtime compilation
+    display_resolution = "720p"  # Lower resolution for better performance
+
+    [Audio]
+    audio_backend = "cubeb"
+    ```
+
+    <Warning>
+      Intel Macs use CPU emulation (Dynarmic) which is more demanding than Apple Hypervisor. Lower resolutions and shader quality may be needed.
+    </Warning>
+  </Tab>
+</Tabs>
+
+See the [Configuration Guide](/guide/configuration) for all available options.
+
+## Running Official Games
+
+To run official Nintendo Switch games (NCA format):
+
+<Steps>
+  <Step title="Obtain Firmware Files">
+    Extract and decrypt firmware files from your Nintendo Switch using [switch-extract-macos](https://github.com/SamoZ256/switch-extract-macos).
+
+    Required firmware files include:
+    - Fonts (FontStandard, FontNintendoExtension)
+    - Time zone data (TimeZoneBinary)
+    - Avatar images (AvatarImage)
+
+    See the [Firmware Guide](/guide/firmware) for details.
+  </Step>
+
+  <Step title="Install Game Patches">
+    Download patches from [hydra-patches](https://github.com/SamoZ256/hydra-patches) to prevent crashes in official games.
+
+    Follow the installation guide in that repository to apply patches correctly.
+  </Step>
+
+  <Step title="Load the Game">
+    With firmware configured and patches installed, load your NCA file through Hydra's interface.
+
+    <Note>
+      First launch may take longer as shaders compile. Subsequent launches will be faster.
+    </Note>
+  </Step>
+</Steps>
+
+## First Launch Checklist
+
+When running a game for the first time:
+
+<Check>**Firmware configured** - Set `firmware_path` in config.toml (for official games)</Check>
+<Check>**Patches installed** - Download from [hydra-patches](https://github.com/SamoZ256/hydra-patches)</Check>
+<Check>**File format supported** - NRO, NCA, or NX (convert NSP if needed)</Check>
+<Check>**Sufficient RAM** - Close other applications to free memory</Check>
+<Check>**Latest Hydra version** - Check [releases](https://github.com/SamoZ256/hydra/releases)</Check>
+
+## Troubleshooting Common Issues
 
 <AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
+  <Accordion title="Game won't load or crashes immediately">
+    **Possible solutions:**
+
+    1. **Verify file format**: Ensure you're using NRO, NCA, or NX format (not NSP)
+    2. **Check firmware**: Official games require firmware files configured in `config.toml`
+    3. **Install patches**: Download from [hydra-patches](https://github.com/SamoZ256/hydra-patches)
+    4. **Check logs**: Look at logs in `~/Library/Application Support/Hydra/log.txt`
+
+    ```bash
+    # View recent errors
+    tail -n 50 ~/Library/Application\ Support/Hydra/log.txt
+    ```
   </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
+
+  <Accordion title="Performance is poor or laggy">
+    **Try these optimizations:**
+
+    1. **Lower resolution**: Change `display_resolution` to `"720p"` in config.toml
+    2. **Use recommended CPU backend**: `"apple_hypervisor"` on Apple Silicon, `"dynarmic"` on Intel
+    3. **Close other applications**: Free up RAM and CPU resources
+    4. **Check Activity Monitor**: Ensure Hydra has sufficient resources
+
+    See the [Configuration Guide](/guide/configuration) for performance tuning options.
+  </Accordion>
+
+  <Accordion title="Controls not working">
+    **Debugging steps:**
+
+    1. **Test keyboard controls**: Use the default keyboard mapping first
+    2. **Connect controller before launch**: Plug in gamepad before opening Hydra
+    3. **Check controller compatibility**: PlayStation, Xbox, and Nintendo Pro Controllers are supported
+    4. **Review control configuration**: See [Controls Guide](/guide/controls)
+
+    Test with arrow keys and Z/X buttons first to verify basic input works.
+  </Accordion>
+
+  <Accordion title="Audio issues or no sound">
+    **Solutions:**
+
+    1. **Verify audio backend**: Set `audio_backend = "cubeb"` in config.toml
+    2. **Check system volume**: Ensure macOS volume is not muted
+    3. **Select correct output device**: Check Sound settings in System Preferences
+    4. **Try restarting**: Close and reopen Hydra
+
+    See the [Audio Features](/features/audio) documentation for advanced settings.
   </Accordion>
 </AccordionGroup>
 
-### Step 2: Deploy your changes
+For more detailed troubleshooting, see the [Troubleshooting Guide](/guide/troubleshooting).
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+## Checking Logs
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+If you encounter issues, check the log file for error messages:
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+```bash
+# View the full log file
+open -e ~/Library/Application\ Support/Hydra/log.txt
 
-### Step 3: Go live
+# Or tail the last 100 lines
+tail -n 100 ~/Library/Application\ Support/Hydra/log.txt
+```
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+Log file location is defined in `src/common/config.cpp:62`.
 
-## Next steps
+### Enable Debug Logging
 
-Now that you have your docs running, explore these key features:
+For more detailed logs, enable debug mode in `config.toml`:
+
+```toml
+[Debug]
+log_level = "debug"  # Options: "off", "error", "warn", "info", "debug"
+log_to_file = true
+log_to_stdout = true
+```
+
+Debug options are defined in `src/common/config.cpp:218-225`.
+
+## Next Steps
+
+Now that you have Hydra running:
 
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card
+    title="Configuration"
+    icon="sliders"
+    href="/guide/configuration"
+  >
+    Fine-tune CPU, GPU, and system settings
+  </Card>
+  <Card
+    title="Controls"
+    icon="gamepad"
+    href="/guide/controls"
+  >
+    Configure keyboard and controller inputs
+  </Card>
+  <Card
+    title="Running Games"
+    icon="play"
+    href="/guide/running-games"
+  >
+    Learn advanced game loading and management
+  </Card>
+  <Card
+    title="Troubleshooting"
+    icon="wrench"
+    href="/guide/troubleshooting"
+  >
+    Fix issues and optimize performance
+  </Card>
 </CardGroup>
 
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>
+<Info>
+  **Need help?** Join the [Discord server](https://discord.gg/FZ742SWv8f) or check the [FAQ](/resources/faq) for common questions.
+</Info>

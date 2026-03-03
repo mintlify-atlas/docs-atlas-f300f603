@@ -1,0 +1,369 @@
+---
+title: Firmware
+description: How to install and manage Nintendo Switch firmware in Hydra
+---
+
+Many Nintendo Switch games require system firmware files to run properly. This guide explains what firmware is, why it's needed, and how to install it in Hydra.
+
+## What is Firmware?
+
+Nintendo Switch firmware contains system files that games depend on:
+
+<CardGroup cols={2}>
+  <Card title="System Fonts" icon="font">
+    Font data for Japanese, Chinese, Korean, and Latin scripts
+  </Card>
+  <Card title="Time Zone Data" icon="clock">
+    Regional time zone information
+  </Card>
+  <Card title="System Archives" icon="box">
+    Avatar images and other system resources
+  </Card>
+  <Card title="System Modules" icon="microchip">
+    Core system services and libraries
+  </Card>
+</CardGroup>
+
+## Why Firmware is Required
+
+<Accordion title="Font Rendering">
+
+Games that display text in multiple languages need the appropriate font files:
+
+- **FontNintendoExtension** (Title ID: `0100000000000810`)
+- **FontStandard** (Title ID: `0100000000000811`)
+- **FontKorean** (Title ID: `0100000000000812`)
+- **FontChineseTraditional** (Title ID: `0100000000000813`)
+- **FontChineseSimple** (Title ID: `0100000000000814`)
+
+Without fonts, text may appear as boxes or cause crashes.
+
+</Accordion>
+
+<Accordion title="Regional Settings">
+
+**TimeZoneBinary** (Title ID: `010000000000080e`) provides:
+- Time zone definitions
+- Daylight saving time rules
+- Regional calendar data
+
+Required for games that use system time functions.
+
+</Accordion>
+
+<Accordion title="User Avatars">
+
+**AvatarImage** (Title ID: `010000000000080a`) contains:
+- Default user avatar images
+- System profile pictures
+
+Used by games with user profile features.
+
+</Accordion>
+
+## Obtaining Firmware
+
+Firmware files must be dumped from your own Nintendo Switch console.
+
+<Warning>
+  For legal reasons, Hydra cannot and will not provide firmware files. You must dump firmware from a console you own.
+</Warning>
+
+### What You Need
+
+- A Nintendo Switch console (original or OLED model)
+- Custom firmware (like Atmosphère) installed
+- SD card with sufficient space
+- Firmware dumping tools
+
+### Firmware File Format
+
+Firmware consists of NCA (Nintendo Content Archive) files:
+
+```
+firmware/
+├── 010000000000080a.nca  # AvatarImage
+├── 010000000000080e.nca  # TimeZoneBinary
+├── 0100000000000810.nca  # FontNintendoExtension
+├── 0100000000000811.nca  # FontStandard
+├── 0100000000000812.nca  # FontKorean
+├── 0100000000000813.nca  # FontChineseTraditional
+├── 0100000000000814.nca  # FontChineseSimple
+└── ... (other system files)
+```
+
+<Info>
+  Firmware files are named using their Title ID in hexadecimal format.
+</Info>
+
+## Installing Firmware in Hydra
+
+<Steps>
+  <Step title="Prepare Firmware Files">
+    Dump firmware from your Switch console to a directory on your Mac.
+    
+    Ensure all `.nca` files are in a single folder.
+  </Step>
+  
+  <Step title="Open Hydra Settings">
+    Launch Hydra and open Settings (⌘+,)
+  </Step>
+  
+  <Step title="Set Firmware Path">
+    1. Navigate to the **System** tab
+    2. In the **Firmware Path** field, enter the path to your firmware directory
+    3. Or click **Browse** to select the folder
+    
+    Example: `/Users/username/Switch/firmware`
+  </Step>
+  
+  <Step title="Verify Installation">
+    Close Settings. Hydra will automatically:
+    - Scan the firmware directory
+    - Index all NCA files
+    - Make them available to games
+    
+    Check the log file to confirm firmware was loaded successfully.
+  </Step>
+</Steps>
+
+## Firmware Installation Process
+
+When you launch Hydra with a firmware path configured:
+
+1. **Scanning**: Hydra scans the firmware directory for `.nca` files
+2. **Processing**: Each NCA is opened and its content type is identified
+3. **Indexing**: Files are registered in the virtual filesystem:
+   ```
+   /firmware/{title_id}/{content_type}
+   ```
+4. **Aliasing**: Common files get friendly aliases:
+   ```
+   /firmware/AvatarImage
+   /firmware/FontStandard
+   /firmware/TimeZoneBinary
+   etc.
+   ```
+
+<Info>
+  This process happens automatically when Hydra starts. You don't need to manually install each file.
+</Info>
+
+## Firmware Location in Virtual Filesystem
+
+Once installed, firmware files are accessible at:
+
+```
+/firmware/
+├── 010000000000080a/data -> AvatarImage
+├── 010000000000080e/data -> TimeZoneBinary  
+├── 0100000000000810/data -> FontNintendoExtension
+├── 0100000000000811/data -> FontStandard
+├── 0100000000000812/data -> FontKorean
+├── 0100000000000813/data -> FontChineseTraditional
+└── 0100000000000814/data -> FontChineseSimple
+```
+
+**Friendly aliases:**
+```
+/firmware/AvatarImage
+/firmware/TimeZoneBinary
+/firmware/FontNintendoExtension
+/firmware/FontStandard
+/firmware/FontKorean
+/firmware/FontChineseTraditional
+/firmware/FontChineseSimple
+```
+
+## Loading Firmware Applets
+
+You can launch system applets directly from firmware:
+
+1. **Menu**: File > Load from firmware
+2. Select an applet from the list
+3. The applet will launch like a regular game
+
+<Note>
+  Available applets depend on which firmware files you've installed. Not all applets may be functional.
+</Note>
+
+## Required vs. Optional Files
+
+### Essential Firmware
+
+These files are required by most games:
+
+<Card title="Fonts" icon="font">
+  - `FontStandard` (0100000000000811)
+  - `FontNintendoExtension` (0100000000000810)
+  
+  **Required for:** Text rendering in all games
+</Card>
+
+### Language-Specific
+
+Only needed for games in specific languages:
+
+- **FontKorean** - Korean language games
+- **FontChineseTraditional** - Traditional Chinese
+- **FontChineseSimple** - Simplified Chinese
+
+### Optional System Files
+
+- **TimeZoneBinary** - Time-dependent features
+- **AvatarImage** - User profile features
+
+<Info>
+  Start with FontStandard and FontNintendoExtension. Add others as needed for specific games.
+</Info>
+
+## Troubleshooting Firmware Issues
+
+<AccordionGroup>
+  <Accordion title="Game shows missing font errors">
+    **Symptoms:**
+    - Text appears as boxes
+    - Game crashes when displaying text
+    - "Font not found" in logs
+    
+    **Solution:**
+    1. Check firmware path is set correctly
+    2. Verify font NCA files exist
+    3. Ensure files aren't corrupted
+    4. Check log for specific missing Title IDs
+  </Accordion>
+  
+  <Accordion title="Firmware path not working">
+    **Check:**
+    - Path is absolute, not relative
+    - No typos in path
+    - Directory exists and is readable
+    - No trailing slash in path
+    
+    **Example correct paths:**
+    ```
+    /Users/username/Switch/firmware
+    ~/Documents/Switch/firmware
+    ```
+    
+    **Example incorrect:**
+    ```
+    /Users/username/Switch/firmware/  ❌ (trailing slash)
+    firmware/  ❌ (relative path)
+    ```
+  </Accordion>
+  
+  <Accordion title="No firmware applets in menu">
+    **Possible causes:**
+    1. Firmware path not configured
+    2. No program-type NCAs in firmware directory
+    3. NCA files are corrupted
+    
+    **To verify:**
+    - Check Settings > System > Firmware Path
+    - Ensure directory contains `.nca` files
+    - Review log file for firmware loading errors
+  </Accordion>
+  
+  <Accordion title="Failed to add firmware entry errors">
+    **Symptoms:**
+    Error in logs: `Failed to add firmware entry`
+    
+    **Causes:**
+    - Corrupted NCA files
+    - Incompatible firmware version
+    - File permission issues
+    
+    **Solution:**
+    1. Re-dump firmware files
+    2. Check file permissions (should be readable)
+    3. Verify NCA files are valid
+  </Accordion>
+</AccordionGroup>
+
+## Firmware Versions
+
+Nintendo Switch firmware versions are numbered (e.g., 16.0.0, 17.0.0).
+
+### Version Compatibility
+
+- **Newer is generally better** - Latest firmware has best compatibility
+- **Game requirements vary** - Some games need minimum firmware versions
+- **Updates add features** - New system features require updated firmware
+
+<Warning>
+  If a game requires firmware version X.X.X, ensure your dumped firmware is that version or newer.
+</Warning>
+
+### Checking Firmware Version
+
+On your Switch console:
+1. System Settings
+2. System
+3. System Update
+4. Current version displayed
+
+Dump firmware after updating to get the latest version.
+
+## Legal Considerations
+
+<Warning>
+  **Important Legal Information**
+  
+  - Firmware files are copyrighted by Nintendo
+  - Only dump firmware from consoles you own
+  - Do not download firmware from the internet
+  - Do not share firmware files
+  - Respect intellectual property laws in your jurisdiction
+</Warning>
+
+Emulation is legal, but piracy is not. Always:
+- ✅ Dump your own firmware
+- ✅ Use games you own
+- ✅ Respect copyright
+- ❌ Don't download firmware
+- ❌ Don't share copyrighted files
+
+## Configuration Storage
+
+The firmware path is stored in `config.toml`:
+
+```toml
+[System]
+firmware_path = "/path/to/firmware"
+```
+
+You can edit this file directly if needed, but using the Settings UI is recommended.
+
+## Advanced: Firmware Internals
+
+For developers and advanced users:
+
+### Content Archive Types
+
+NCAs have different content types:
+- **Program** - Executable code (can be launched)
+- **Data** - RomFS data
+- **Control** - Metadata and icons
+- **Meta** - Content metadata
+
+Only Program-type NCAs can be launched as applets.
+
+### Virtual Filesystem Integration
+
+Firmware is mounted into Hydra's virtual filesystem at `/firmware/`. Games access firmware through standard file I/O operations, transparently reading from the NCA files.
+
+### Implementation Details
+
+Firmware loading is implemented in `src/core/horizon/firmware.cpp`:
+
+```cpp
+void try_install_firmware_to_filesystem(filesystem::Filesystem& fs) {
+  // Scans firmware directory
+  // Opens each NCA file
+  // Registers in virtual filesystem
+  // Creates friendly aliases
+}
+```
+
+See `firmware.cpp:9` for the complete implementation.

@@ -1,0 +1,243 @@
+---
+title: CPU Backends
+description: Learn about Hydra's CPU emulation backends and how to choose the right one for your needs
+---
+
+Hydra provides two high-performance CPU backends for emulating the Nintendo Switch's ARM64 processor. Each backend offers different characteristics and capabilities.
+
+## Available Backends
+
+<CardGroup cols={2}>
+  <Card title="Apple Hypervisor" icon="bolt" iconType="solid">
+    Native hardware-assisted virtualization using Apple's Hypervisor framework
+  </Card>
+  <Card title="Dynarmic" icon="microchip" iconType="solid">
+    Cross-platform ARM64 JIT recompiler with advanced debugging support
+  </Card>
+</CardGroup>
+
+## Apple Hypervisor Backend
+
+The Apple Hypervisor backend leverages macOS's native virtualization framework to execute ARM64 code directly on Apple Silicon processors.
+
+### Architecture
+
+The Hypervisor backend creates a virtual machine and vCPU instances for each guest thread:
+
+<CodeGroup>
+```cpp src/core/hw/tegra_x1/cpu/hypervisor/cpu.hpp
+class VirtualMachine {
+  public:
+    VirtualMachine();
+    ~VirtualMachine();
+};
+
+class Cpu : public ICpu {
+  public:
+    IMmu* CreateMmu() override;
+    IThread* CreateThread(IMmu* mmu, const ThreadCallbacks& callbacks,
+                          IMemory* tls_mem, vaddr_t tls_mem_base) override;
+    IMemory* AllocateMemory(usize size) override;
+
+  private:
+    VirtualMachine vm;
+    Memory kernel_mem;
+    PageTable kernel_page_table;
+};
+```
+
+```cpp src/core/hw/tegra_x1/cpu/hypervisor/cpu.cpp
+VirtualMachine::VirtualMachine() { 
+    HV_ASSERT_SUCCESS(hv_vm_create(nullptr)); 
+}
+
+Cpu::Cpu()
+    : kernel_mem(align(KERNEL_MEM_SIZE, APPLE_PAGE_SIZE)),
+      kernel_page_table(KERNEL_PAGE_TABLE_REGION_BASE) {
+    // Features
+    features = {.supports_native_breakpoints = true,
+                .supports_synchronous_single_step = false};
+}
+```
+</CodeGroup>
+
+### Key Features
+
+<AccordionGroup>
+  <Accordion title="Native Breakpoint Support" icon="circle-pause">
+    The Hypervisor backend supports hardware breakpoints natively through Apple's debugging infrastructure:
+    
+    ```cpp
+    features.supports_native_breakpoints = true;
+    ```
+    
+    This enables efficient debugging without software instrumentation overhead.
+  </Accordion>
+
+  <Accordion title="Exception Handling" icon="triangle-exclamation">
+    Custom exception handlers are installed in kernel memory for handling system calls and exceptions:
+    
+    ```cpp
+    const u32 exception_handler[] = {
+        0xd41fffe2u, // hvc #0xFFFF
+        0xd4200000u, // brk #0
+    };
+    ```
+  </Accordion>
+
+  <Accordion title="Memory Management" icon="memory">
+    Direct page table mapping with kernel and user address spaces:
+    
+    ```cpp
+    SetSysReg(HV_SYS_REG_TTBR0_EL1, MMU.GetUserPageTable().GetBase());
+    SetSysReg(HV_SYS_REG_TTBR1_EL1, CPU.GetKernelPageTable().GetBase());
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Performance Characteristics
+
+<Info>
+  **Best Performance**: The Hypervisor backend provides the highest performance on Apple Silicon Macs, as it executes ARM64 code natively with minimal overhead.
+</Info>
+
+## Dynarmic Backend
+
+Dynarmic is a sophisticated ARM64 JIT (Just-In-Time) recompiler that translates guest ARM64 code to host ARM64 code.
+
+### Architecture
+
+The Dynarmic backend creates a JIT instance for each thread with optimized code generation:
+
+<CodeGroup>
+```cpp src/core/hw/tegra_x1/cpu/dynarmic/thread.cpp
+Thread::Thread(IMmu* mmu, const ThreadCallbacks& callbacks, 
+               IMemory* tls_mem, vaddr_t tls_mem_base)
+    : IThread(mmu, callbacks, tls_mem) {
+    // Create JIT
+    Dynarmic::A64::UserConfig config{};
+    config.callbacks = this;
+    
+    // Multi-process state
+    config.processor_id = 0;
+    config.global_monitor = &g_exclusive_monitor;
+    
+    // System registers
+    config.tpidrro_el0 = &tpidrro_el0;
+    config.tpidr_el0 = &tpidr_el0;
+    config.dczid_el0 = 4;
+    config.ctr_el0 = 0x8444c004;
+    config.cntfrq_el0 = CLOCK_RATE_HZ;
+    
+    // Code cache size
+    config.code_cache_size = 128 * 1024 * 1024; // 128 MiB
+    
+    jit = new Dynarmic::A64::Jit(config);
+}
+```
+
+```cpp src/core/hw/tegra_x1/cpu/dynarmic/cpu.cpp
+Cpu::Cpu() {
+    // Features
+    features = {.supports_native_breakpoints = false,
+                .supports_synchronous_single_step = true};
+}
+```
+</CodeGroup>
+
+### Key Features
+
+<AccordionGroup>
+  <Accordion title="Synchronous Single-Step Execution" icon="shoe-prints">
+    The Dynarmic backend supports single-stepping through code instruction-by-instruction:
+    
+    ```cpp
+    features.supports_synchronous_single_step = true;
+    ```
+    
+    This is invaluable for debugging and understanding program behavior.
+  </Accordion>
+
+  <Accordion title="Page Table Integration" icon="table">
+    Direct integration with the guest page table for fast memory access:
+    
+    ```cpp
+    config.page_table = reinterpret_cast<void**>(MMU->GetPageTablePtr());
+    config.page_table_address_space_bits = 39;
+    config.detect_misaligned_access_via_page_table = 16 | 32 | 64 | 128;
+    ```
+  </Accordion>
+
+  <Accordion title="Code Cache" icon="database">
+    Large code cache (128 MiB) for storing compiled code blocks, reducing recompilation overhead.
+  </Accordion>
+
+  <Accordion title="Exclusive Monitor" icon="lock">
+    Hardware-accurate exclusive memory access monitoring for proper synchronization primitive emulation.
+  </Accordion>
+</AccordionGroup>
+
+### Performance Characteristics
+
+<Info>
+  **Debugging Optimized**: While slightly slower than the Hypervisor backend, Dynarmic provides superior debugging capabilities with single-step support.
+</Info>
+
+## Performance Comparison
+
+<CardGroup cols={2}>
+  <Card title="Apple Hypervisor" icon="gauge-high">
+    - **Speed**: Fastest (near-native)
+    - **Compatibility**: Apple Silicon only
+    - **Debugging**: Hardware breakpoints
+    - **Overhead**: Minimal
+  </Card>
+  
+  <Card title="Dynarmic" icon="gauge">
+    - **Speed**: Fast (JIT compiled)
+    - **Compatibility**: Cross-platform
+    - **Debugging**: Full single-step support
+    - **Overhead**: JIT compilation
+  </Card>
+</CardGroup>
+
+## When to Use Each Backend
+
+<Steps>
+  <Step title="Choose Apple Hypervisor if">
+    - You want maximum performance
+    - You're running on Apple Silicon
+    - You don't need instruction-level debugging
+    - You're playing games (not developing)
+  </Step>
+  
+  <Step title="Choose Dynarmic if">
+    - You need to debug emulator issues
+    - You want to step through code
+    - You're developing homebrew
+    - You need detailed execution analysis
+  </Step>
+</Steps>
+
+## CPU Features
+
+Both backends expose their capabilities through the `CpuFeatures` structure:
+
+```cpp src/core/hw/tegra_x1/cpu/cpu.hpp
+struct CpuFeatures {
+    bool supports_native_breakpoints;
+    bool supports_synchronous_single_step;
+};
+```
+
+<Tip>
+  The emulator can query these features at runtime to enable or disable debugging functionality based on the active backend.
+</Tip>
+
+## Configuration
+
+The CPU backend is selected via the configuration file. See the [Configuration](/getting-started/configuration) page for details on how to set the `cpu_backend` option.
+
+<Warning>
+  Switching CPU backends requires restarting the emulator. Save states are not compatible between backends.
+</Warning>

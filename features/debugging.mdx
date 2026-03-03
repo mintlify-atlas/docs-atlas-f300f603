@@ -1,0 +1,545 @@
+---
+title: Debugging Support
+description: Learn how to use Hydra's debugging features including GDB support and logging
+---
+
+Hydra includes comprehensive debugging capabilities for developers, including GDB server support, symbol tables, and detailed logging.
+
+## GDB Debugging Support
+
+Hydra features a built-in GDB server that allows you to debug guest (Nintendo Switch) code using standard GDB tools.
+
+### GDB Server Architecture
+
+<CodeGroup>
+```cpp src/core/debugger/gdb_server.hpp
+class GdbServer {
+  public:
+    GdbServer(Debugger& debugger);
+    ~GdbServer();
+    
+    void RegisterThread(Thread& thread);
+    void NotifySupervisorPaused(horizon::kernel::GuestThread* thread,
+                                Signal signal);
+    void BreakpointHit(horizon::kernel::GuestThread* thread);
+    
+  private:
+    i32 server_socket;
+    i32 client_socket;
+    std::thread server_thread;
+    std::atomic<bool> running;
+    
+    std::vector<vaddr_t> breakpoint_addresses;
+    std::map<vaddr_t, u32> replaced_instructions;
+};
+```
+</CodeGroup>
+
+<Info>
+  The GDB server runs on a separate thread and communicates with GDB clients over TCP/IP.
+</Info>
+
+### Supported GDB Features
+
+<AccordionGroup>
+  <Accordion title="Register Access" icon="microchip">
+    Read and write ARM64 registers:
+    
+    ```cpp
+    void HandleRegRead(std::string_view command);
+    std::string ReadReg(u32 id);
+    ```
+    
+    Supported registers:
+    - General purpose (x0-x31)
+    - Special registers (PC, SP, LR)
+    - FP/SIMD registers (v0-v31)
+    - System registers (PSTATE, etc.)
+  </Accordion>
+
+  <Accordion title="Memory Access" icon="memory">
+    Read guest memory during debugging:
+    
+    ```cpp
+    void HandleMemRead(std::string_view command);
+    ```
+    
+    - Read arbitrary memory addresses
+    - Supports page-granular access
+    - Respects memory protection
+  </Accordion>
+
+  <Accordion title="Breakpoints" icon="circle-pause">
+    Set and manage breakpoints:
+    
+    ```cpp
+    void HandleInsertBreakpoint(std::string_view command);
+    void HandleRemoveBreakpoint(std::string_view command);
+    
+    std::vector<vaddr_t> breakpoint_addresses;
+    std::map<vaddr_t, u32> replaced_instructions;
+    ```
+    
+    Breakpoint types:
+    - Software breakpoints (BRK instruction)
+    - Hardware breakpoints (CPU backend dependent)
+  </Accordion>
+
+  <Accordion title="Thread Control" icon="list-check">
+    Control thread execution:
+    
+    ```cpp
+    void HandleVCont(std::string_view command);
+    void HandleSetActiveThread(std::string_view command);
+    void HandleThreadStatus();
+    ```
+    
+    - Continue/pause threads
+    - Switch active thread
+    - Query thread status
+  </Accordion>
+
+  <Accordion title="Executable Information" icon="file-code">
+    Query loaded executables:
+    
+    ```cpp
+    void HandleGetExecutables();
+    ```
+    
+    - List loaded modules
+    - Get memory ranges
+    - Symbol information
+  </Accordion>
+</AccordionGroup>
+
+## Enabling GDB Debugging
+
+To use GDB debugging with Hydra:
+
+<Steps>
+  <Step title="Enable GDB in Configuration">
+    Edit your `config.toml`:
+    
+    ```toml
+    [debug]
+    gdb_enabled = true
+    gdb_port = 1234
+    gdb_wait_for_client = false  # Wait for GDB before starting
+    ```
+  </Step>
+  
+  <Step title="Start Hydra">
+    Launch the emulator. The GDB server will start listening on the configured port.
+    
+    ```bash
+    hydra game.nsp
+    ```
+    
+    You should see a log message indicating the GDB server is ready.
+  </Step>
+  
+  <Step title="Connect GDB Client">
+    Use `gdb` or a compatible debugger:
+    
+    ```bash
+    gdb-multiarch
+    (gdb) target remote localhost:1234
+    (gdb) set architecture aarch64
+    ```
+  </Step>
+  
+  <Step title="Debug Your Game">
+    Set breakpoints and debug:
+    
+    ```gdb
+    (gdb) break *0x7100000000
+    (gdb) continue
+    (gdb) info registers
+    (gdb) x/10i $pc
+    ```
+  </Step>
+</Steps>
+
+<Warning>
+  If `gdb_wait_for_client` is true, the emulator will pause at startup until a GDB client connects.
+</Warning>
+
+## GDB Protocol Support
+
+The GDB server implements standard RSP (Remote Serial Protocol) commands:
+
+```cpp src/core/debugger/gdb_server.cpp
+const char GDB_START = '$';
+const char GDB_END = '#';
+const char GDB_ACK = '+';
+const char GDB_NACK = '-';
+
+const char GDB_OK[] = "OK";
+const char GDB_ERROR[] = "E01";
+```
+
+### Target XML
+
+The server provides AArch64 target description:
+
+```cpp
+std::string_view get_target_xml_aarch64() {
+    return R"(<?xml version="1.0"?>
+    <!DOCTYPE target SYSTEM "gdb-target.dtd">
+    <target version="1.0">
+      <architecture>aarch64</architecture>
+      <feature name="org.gnu.gdb.aarch64.core">
+        <reg name="x0" bitsize="64"/>
+        <reg name="x1" bitsize="64"/>
+        ...
+      </feature>
+    </target>)";
+}
+```
+
+## Debugger Framework
+
+Hydra includes a comprehensive debugging framework beyond GDB:
+
+### Debugger Class
+
+```cpp src/core/debugger/debugger.hpp
+class Debugger {
+  public:
+    Debugger(const std::string_view name, 
+             horizon::kernel::Process* process);
+    
+    // Thread management
+    void RegisterThisThread(const std::string_view name);
+    void UnregisterThisThread();
+    
+    // Breakpoints
+    void BreakOnThisThread(fmt::format_string<T...> f, T&&... args);
+    
+    // Symbols
+    SymbolTable& GetModuleTable();
+    SymbolTable& GetFunctionTable();
+    
+    // GDB
+    void ActivateGdbServer();
+    void NotifySupervisorPaused(horizon::kernel::GuestThread* thread,
+                                Signal signal);
+    void BreakpointHit(horizon::kernel::GuestThread* thread);
+};
+```
+
+### Thread Management
+
+<Tabs>
+  <Tab title="Guest Threads">
+    Track Nintendo Switch threads:
+    
+    ```cpp
+    class Thread {
+      public:
+        Thread(const std::string_view name);
+        
+        const std::string& GetName() const;
+        ThreadStatus GetStatus() const;
+        const std::string& GetBreakReason() const;
+        
+      private:
+        std::string name;
+        horizon::kernel::GuestThread* guest_thread;
+        ThreadStatus status;
+        std::string break_reason;
+    };
+    ```
+  </Tab>
+  
+  <Tab title="Thread Status">
+    Monitor thread execution state:
+    
+    ```cpp
+    enum class ThreadStatus {
+        Running,
+        Break,
+    };
+    ```
+    
+    - **Running**: Thread is executing normally
+    - **Break**: Thread hit a breakpoint or debugger assertion
+  </Tab>
+</Tabs>
+
+## Symbol Tables
+
+The debugger maintains symbol tables for modules and functions:
+
+```cpp src/core/debugger/debugger.hpp
+struct Symbol {
+    std::string name;
+    Range<vaddr_t> guest_mem_range;
+};
+
+class SymbolTable {
+  public:
+    void RegisterSymbol(const Symbol& symbol);
+    std::string FindSymbol(vaddr_t addr);
+    
+  private:
+    std::vector<Symbol> symbols;
+};
+```
+
+<AccordionGroup>
+  <Accordion title="Module Symbols" icon="cube">
+    Track loaded executables and libraries:
+    
+    ```cpp
+    debugger.GetModuleTable().RegisterSymbol({
+        "game.nso",
+        Range<vaddr_t>(0x7100000000, 0x7100800000)
+    });
+    ```
+  </Accordion>
+
+  <Accordion title="Function Symbols" icon="function">
+    Register individual functions for better debugging:
+    
+    ```cpp
+    debugger.GetFunctionTable().RegisterSymbol({
+        "main",
+        Range<vaddr_t>(0x7100001000, 0x7100001100)
+    });
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Debug Assertions
+
+Use debug assertions in your code:
+
+```cpp src/core/debugger/debugger.hpp
+#define DEBUGGER_ASSERT(condition, c, f, ...) \
+    if (!(condition)) { \
+        GET_CURRENT_PROCESS_DEBUGGER().BreakOnThisThread( \
+            f PASS_VA_ARGS(__VA_ARGS__)); \
+    }
+
+#ifdef HYDRA_DEBUG
+#define DEBUGGER_ASSERT_DEBUG(condition, c, ...) \
+    DEBUGGER_ASSERT(condition, c, __VA_ARGS__)
+#else
+#define DEBUGGER_ASSERT_DEBUG(condition, c, ...) \
+    if (condition) {}
+#endif
+```
+
+<Info>
+  `DEBUGGER_ASSERT_DEBUG` is only active in debug builds, while `DEBUGGER_ASSERT` is always active.
+</Info>
+
+## Stack Traces
+
+The debugger can capture and resolve stack traces:
+
+```cpp
+struct StackFrame {
+    Debugger* debugger;
+    StackFrameType type;  // Host or Guest
+    u64 addr;
+    
+    ResolvedStackFrame Resolve() const;
+};
+
+struct ResolvedStackFrame {
+    std::string module;
+    std::string function;
+    u64 addr;
+};
+```
+
+## Message Logging
+
+Capture debug messages with stack traces:
+
+```cpp
+struct Message {
+    LogMessage log;
+    StackTrace stack_trace;
+};
+```
+
+Each thread maintains a ring buffer of messages for inspection.
+
+## Logging Configuration
+
+Control debug output verbosity:
+
+```toml config.toml
+[debug]
+log_output = "file"        # "none", "stdout", or "file"
+log_fs_access = false      # Log filesystem operations
+debug_logging = true       # Enable verbose debug logs
+```
+
+<Tabs>
+  <Tab title="None">
+    Disables all logging output
+    - Fastest performance
+    - No debug information
+    - Not recommended
+  </Tab>
+  
+  <Tab title="StdOut">
+    Logs to standard output
+    - Real-time viewing
+    - Good for development
+    - Can clutter terminal
+  </Tab>
+  
+  <Tab title="File">
+    Logs to file in logs directory
+    - **Recommended** for debugging
+    - Doesn't impact terminal
+    - Easy to share logs
+    - Searchable history
+  </Tab>
+</Tabs>
+
+## CPU Backend Differences
+
+Debug capabilities vary by CPU backend:
+
+<CardGroup cols={2}>
+  <Card title="Apple Hypervisor" icon="bolt">
+    **Debug Features:**
+    - Native hardware breakpoints
+    - Fast breakpoint handling
+    - Debug exception trapping
+    - No single-step support
+    
+    ```cpp
+    features.supports_native_breakpoints = true;
+    features.supports_synchronous_single_step = false;
+    ```
+  </Card>
+  
+  <Card title="Dynarmic" icon="microchip">
+    **Debug Features:**
+    - Software breakpoints
+    - Single-step execution
+    - Instruction-level debugging
+    - Exception callbacks
+    
+    ```cpp
+    features.supports_native_breakpoints = false;
+    features.supports_synchronous_single_step = true;
+    ```
+  </Card>
+</CardGroup>
+
+<Warning>
+  For the best debugging experience, use the **Dynarmic** CPU backend which supports single-stepping.
+</Warning>
+
+## Advanced Debugging
+
+### Executable Registration
+
+Register executables for symbol resolution:
+
+```cpp
+debugger.RegisterExecutable("game.nso", executable_file);
+```
+
+### Custom Debug Commands
+
+The GDB server supports custom commands via `monitor`:
+
+```cpp
+void HandleRcmd(std::string_view command);
+```
+
+Use in GDB:
+```gdb
+(gdb) monitor help
+(gdb) monitor executables
+```
+
+## Best Practices
+
+<Steps>
+  <Step title="Use Dynarmic for Development">
+    The Dynarmic CPU backend provides better debugging support with single-step capability.
+  </Step>
+  
+  <Step title="Enable File Logging">
+    Set `log_output = "file"` to capture all debug information without cluttering your terminal.
+  </Step>
+  
+  <Step title="Register Symbols">
+    Register module and function symbols to get meaningful stack traces and breakpoint names.
+  </Step>
+  
+  <Step title="Use Debug Builds">
+    Build Hydra in debug mode for additional assertions and checks:
+    
+    ```bash
+    cmake -DCMAKE_BUILD_TYPE=Debug ..
+    ```
+  </Step>
+</Steps>
+
+## Common Debug Workflows
+
+<AccordionGroup>
+  <Accordion title="Debugging a Crash" icon="bug">
+    1. Enable GDB and file logging
+    2. Reproduce the crash
+    3. Check logs for stack trace
+    4. Connect GDB at crash point
+    5. Examine registers and memory
+  </Accordion>
+
+  <Accordion title="Analyzing Game Behavior" icon="magnifying-glass">
+    1. Set breakpoint at function of interest
+    2. Run until breakpoint hit
+    3. Single-step through code (Dynarmic)
+    4. Inspect registers and memory
+    5. Continue or repeat
+  </Accordion>
+
+  <Accordion title="Performance Profiling" icon="stopwatch">
+    1. Enable performance logging
+    2. Run game for representative period
+    3. Analyze logs for hotspots
+    4. Use GDB to understand slow code
+    5. Optimize as needed
+  </Accordion>
+</AccordionGroup>
+
+<Tip>
+  Combine GDB debugging with Hydra's logging system for the most comprehensive debugging experience.
+</Tip>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="GDB Won't Connect" icon="plug">
+    - Check `gdb_enabled = true` in config
+    - Verify port is not in use (default 1234)
+    - Ensure firewall allows connection
+    - Try `telnet localhost 1234` to test
+  </Accordion>
+
+  <Accordion title="Breakpoints Not Working" icon="circle-xmark">
+    - Verify address is correct
+    - Check if code is loaded at that address
+    - Try hardware breakpoints (Hypervisor)
+    - Switch to Dynarmic backend for software breakpoints
+  </Accordion>
+
+  <Accordion title="Missing Symbols" icon="circle-question">
+    - Register executables with debugger
+    - Load symbol files if available
+    - Use `info symbol` in GDB
+    - Check module table registration
+  </Accordion>
+</AccordionGroup>

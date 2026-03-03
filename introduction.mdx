@@ -1,0 +1,197 @@
+---
+title: Introduction
+description: Welcome to Hydra - an experimental Nintendo Switch emulator for macOS
+---
+
+## What is Hydra?
+
+Hydra is an experimental Nintendo Switch emulator designed specifically for macOS. Built from the ground up to leverage Apple's native technologies, Hydra delivers high-performance emulation through the Apple Hypervisor framework and Metal graphics API.
+
+<Note>
+  Hydra is currently in early development. While some games and homebrew applications run perfectly, most titles may experience crashes or performance issues.
+</Note>
+
+<CardGroup cols={2}>
+  <Card
+    title="Installation"
+    icon="download"
+    href="/installation"
+  >
+    Get Hydra installed on your Mac in minutes
+  </Card>
+  <Card
+    title="Quick Start"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Load and run your first game
+  </Card>
+  <Card
+    title="Configuration"
+    icon="sliders"
+    href="/guide/configuration"
+  >
+    Customize CPU, GPU, and display settings
+  </Card>
+  <Card
+    title="Troubleshooting"
+    icon="wrench"
+    href="/guide/troubleshooting"
+  >
+    Fix common issues and optimize performance
+  </Card>
+</CardGroup>
+
+## Key Features
+
+### Advanced CPU Backends
+
+Hydra supports two high-performance CPU backends:
+
+- **Apple Hypervisor** - Native ARM64 virtualization for maximum performance on Apple Silicon
+- **Dynarmic** - Cross-platform ARM CPU emulator with JIT compilation
+
+The default backend is automatically selected based on your system capabilities.
+
+### Metal GPU Rendering
+
+Hydra uses Apple's Metal API for GPU rendering, providing:
+
+- Hardware-accelerated graphics on all modern Macs
+- MSL (Metal Shading Language) shader compilation
+- AIR (Apple Intermediate Representation) shader backend support
+- Efficient memory management and low overhead
+
+### Flexible Resolution Options
+
+Scale games from native Switch resolution up to 8K:
+
+<CodeGroup>
+
+```toml config.toml
+[Graphics]
+display_resolution = "auto"  # Auto-select based on window size
+# Other options: "720p", "1080p", "1440p", "2160p", "4320p", "custom"
+custom_display_resolution = "1920x1080"
+```
+
+</CodeGroup>
+
+Available resolutions:
+- **Auto** - Automatically matches your display
+- **720p** - Native Switch docked resolution
+- **1080p** - Full HD
+- **1440p** - 2K
+- **2160p** - 4K Ultra HD
+- **4320p** - 8K
+- **Custom** - Define your own resolution
+
+### High-Quality Audio
+
+Hydra uses the Cubeb audio backend for cross-platform, low-latency audio playback with support for various audio output devices.
+
+### Multiple Frontend Options
+
+Choose the interface that works best for you:
+
+- **SDL3** - Cross-platform, lightweight frontend (default)
+- **SwiftUI** - Native macOS interface with modern design
+
+### Game Format Support
+
+Hydra supports multiple Nintendo Switch file formats:
+
+- **NRO** - Homebrew executable format
+- **NCA** - Nintendo Content Archive (official games)
+- **NX** - Alternative format for packaged games
+- **NSO** - Nintendo Shared Object
+
+<Warning>
+  Official games require system firmware files and may need additional patches to prevent crashes. See the [firmware guide](/guide/firmware) for details.
+</Warning>
+
+## System Requirements
+
+### Minimum Requirements
+
+- **OS**: macOS 10.15 (Catalina) or later
+- **CPU**: Any Intel or Apple Silicon Mac
+- **GPU**: Metal-compatible graphics (all Macs from 2012+)
+- **RAM**: 4GB minimum, 8GB recommended
+- **Storage**: 500MB for emulator, additional space for games and firmware
+
+### Recommended Requirements
+
+- **OS**: macOS 12 (Monterey) or later
+- **CPU**: Apple Silicon (M1/M2/M3) for best performance
+- **RAM**: 16GB for optimal performance
+- **Storage**: SSD recommended
+
+### Build Dependencies
+
+If you plan to build from source:
+
+<CodeGroup>
+
+```bash Homebrew
+brew install cmake ninja sdl3 fmt
+```
+
+</CodeGroup>
+
+## Performance Characteristics
+
+### CPU Backend Performance
+
+**Apple Hypervisor** (Apple Silicon only):
+- Near-native ARM64 execution speed
+- Lowest CPU overhead
+- Best performance for compatible games
+- Recommended for M1/M2/M3 Macs
+
+**Dynarmic** (All platforms):
+- JIT compilation for dynamic recompilation
+- Good performance on both Intel and Apple Silicon
+- Broader compatibility
+- Required for Intel Macs
+
+### GPU Rendering Performance
+
+Metal provides hardware-accelerated rendering with:
+- Efficient shader compilation via MSL
+- Low driver overhead compared to OpenGL
+- Native integration with macOS
+- Support for all modern macOS GPUs
+
+<Note>
+  Performance varies significantly by game. Some titles run at full speed, while others may require performance tuning or have compatibility issues.
+</Note>
+
+## Configuration Location
+
+After first launch, Hydra creates a configuration file at:
+
+```
+~/Library/Application Support/Hydra/config.toml
+```
+
+You can edit this file to customize emulator settings. See the [Configuration Guide](/guide/configuration) for all available options.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Install Hydra"
+    icon="download"
+    href="/installation"
+  >
+    Download and set up the emulator
+  </Card>
+  <Card
+    title="Quick Start Guide"
+    icon="play"
+    href="/quickstart"
+  >
+    Run your first game in minutes
+  </Card>
+</CardGroup>

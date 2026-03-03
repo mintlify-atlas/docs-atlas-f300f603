@@ -1,0 +1,506 @@
+---
+title: 'C API'
+description: 'Complete reference for the Hydra C API for embedding the emulator'
+---
+
+## Overview
+
+Hydra provides a comprehensive C API for embedding the Nintendo Switch emulator into applications. The API is designed to be portable and easy to use from various languages including Swift, C++, and others.
+
+The C API is declared in `src/core/c_api.h` and provides access to:
+
+- Emulation context management
+- Configuration and settings
+- Game loading and ROM handling
+- User management
+- Debugging and logging
+- Filesystem operations
+
+## Core Types
+
+### hydra_string
+
+A C-compatible string type for passing strings across the API boundary.
+
+```c
+typedef struct {
+    const char* data;
+    size_t size;
+} hydra_string;
+```
+
+<ParamField path="data" type="const char*">
+  Pointer to the string data (not null-terminated)
+</ParamField>
+
+<ParamField path="size" type="size_t">
+  Length of the string in bytes
+</ParamField>
+
+### hydra_u128
+
+A 128-bit unsigned integer type used for user IDs and other large values.
+
+```c
+typedef struct {
+    uint64_t lo;
+    uint64_t hi;
+} hydra_u128;
+```
+
+### hydra_uint2
+
+A 2D unsigned integer vector for resolution and dimensions.
+
+```c
+typedef struct {
+    uint32_t x;
+    uint32_t y;
+} hydra_uint2;
+```
+
+## Emulation Context
+
+The emulation context is the core object that manages the emulator instance.
+
+### hydra_create_emulation_context
+
+Creates a new emulation context.
+
+```c
+void* hydra_create_emulation_context();
+```
+
+<ResponseField name="return" type="void*">
+  Pointer to the created emulation context. Returns a non-null pointer on success.
+</ResponseField>
+
+**Example:**
+
+```c
+void* ctx = hydra_create_emulation_context();
+if (!ctx) {
+    // Handle error
+    return;
+}
+```
+
+### hydra_emulation_context_destroy
+
+Destroys an emulation context and frees associated resources.
+
+```c
+void hydra_emulation_context_destroy(void* ctx);
+```
+
+<ParamField path="ctx" type="void*" required>
+  The emulation context to destroy
+</ParamField>
+
+### hydra_emulation_context_set_surface
+
+Sets the rendering surface for the emulator.
+
+```c
+void hydra_emulation_context_set_surface(void* ctx, void* surface);
+```
+
+<ParamField path="ctx" type="void*" required>
+  The emulation context
+</ParamField>
+
+<ParamField path="surface" type="void*" required>
+  Platform-specific surface pointer (e.g., CAMetalLayer* on Metal)
+</ParamField>
+
+### hydra_emulation_context_load_and_start
+
+Loads a game and starts emulation.
+
+```c
+void hydra_emulation_context_load_and_start(void* ctx, void* loader);
+```
+
+<ParamField path="ctx" type="void*" required>
+  The emulation context
+</ParamField>
+
+<ParamField path="loader" type="void*" required>
+  The loader object containing the game to run
+</ParamField>
+
+**Example:**
+
+```c
+void* loader = hydra_create_loader_from_path(game_path);
+if (loader) {
+    hydra_emulation_context_load_and_start(ctx, loader);
+}
+```
+
+### hydra_emulation_context_pause
+
+Pauses emulation.
+
+```c
+void hydra_emulation_context_pause(void* ctx);
+```
+
+<ParamField path="ctx" type="void*" required>
+  The emulation context to pause
+</ParamField>
+
+### hydra_emulation_context_resume
+
+Resumes paused emulation.
+
+```c
+void hydra_emulation_context_resume(void* ctx);
+```
+
+<ParamField path="ctx" type="void*" required>
+  The emulation context to resume
+</ParamField>
+
+### hydra_emulation_context_request_stop
+
+Requests a graceful stop of emulation.
+
+```c
+void hydra_emulation_context_request_stop(void* ctx);
+```
+
+<ParamField path="ctx" type="void*" required>
+  The emulation context to stop
+</ParamField>
+
+### hydra_emulation_context_force_stop
+
+Forces an immediate stop of emulation.
+
+```c
+void hydra_emulation_context_force_stop(void* ctx);
+```
+
+<ParamField path="ctx" type="void*" required>
+  The emulation context to stop
+</ParamField>
+
+### hydra_emulation_context_is_running
+
+Checks if emulation is currently running.
+
+```c
+bool hydra_emulation_context_is_running(void* ctx);
+```
+
+<ParamField path="ctx" type="void*" required>
+  The emulation context to check
+</ParamField>
+
+<ResponseField name="return" type="bool">
+  true if emulation is running, false otherwise
+</ResponseField>
+
+### hydra_emulation_context_progress_frame
+
+Advances emulation by one frame.
+
+```c
+void hydra_emulation_context_progress_frame(
+    void* ctx,
+    uint32_t width,
+    uint32_t height,
+    bool* out_dt_average_updated
+);
+```
+
+<ParamField path="ctx" type="void*" required>
+  The emulation context
+</ParamField>
+
+<ParamField path="width" type="uint32_t" required>
+  Current display width in pixels
+</ParamField>
+
+<ParamField path="height" type="uint32_t" required>
+  Current display height in pixels
+</ParamField>
+
+<ParamField path="out_dt_average_updated" type="bool*" required>
+  Output parameter indicating if delta time average was updated
+</ParamField>
+
+### hydra_emulation_context_get_last_delta_time_average
+
+Gets the average frame time.
+
+```c
+float hydra_emulation_context_get_last_delta_time_average(void* ctx);
+```
+
+<ParamField path="ctx" type="void*" required>
+  The emulation context
+</ParamField>
+
+<ResponseField name="return" type="float">
+  Average delta time in seconds
+</ResponseField>
+
+### hydra_emulation_context_take_screenshot
+
+Captures a screenshot of the current frame.
+
+```c
+void hydra_emulation_context_take_screenshot(void* ctx);
+```
+
+<ParamField path="ctx" type="void*" required>
+  The emulation context
+</ParamField>
+
+### hydra_emulation_context_capture_gpu_frame
+
+Captures GPU frame data for debugging.
+
+```c
+void hydra_emulation_context_capture_gpu_frame(void* ctx);
+```
+
+<ParamField path="ctx" type="void*" required>
+  The emulation context
+</ParamField>
+
+## Game Loading
+
+### hydra_create_loader_from_path
+
+Creates a loader for a game file.
+
+```c
+void* hydra_create_loader_from_path(hydra_string path);
+```
+
+<ParamField path="path" type="hydra_string" required>
+  Path to the game file (NSP, XCI, NCA, etc.)
+</ParamField>
+
+<ResponseField name="return" type="void*">
+  Pointer to the loader object, or NULL on failure
+</ResponseField>
+
+### hydra_loader_destroy
+
+Destroys a loader object.
+
+```c
+void hydra_loader_destroy(void* loader);
+```
+
+<ParamField path="loader" type="void*" required>
+  The loader to destroy
+</ParamField>
+
+### hydra_loader_get_title_id
+
+Gets the title ID of the loaded game.
+
+```c
+uint64_t hydra_loader_get_title_id(void* loader);
+```
+
+<ParamField path="loader" type="void*" required>
+  The loader object
+</ParamField>
+
+<ResponseField name="return" type="uint64_t">
+  The game's title ID
+</ResponseField>
+
+### hydra_loader_has_icon
+
+Checks if the game has an icon.
+
+```c
+bool hydra_loader_has_icon(const void* loader);
+```
+
+<ParamField path="loader" type="const void*" required>
+  The loader object
+</ParamField>
+
+<ResponseField name="return" type="bool">
+  true if the game has an icon, false otherwise
+</ResponseField>
+
+### hydra_loader_extract_icon
+
+Extracts the game icon to a file.
+
+```c
+void hydra_loader_extract_icon(const void* loader, hydra_string path);
+```
+
+<ParamField path="loader" type="const void*" required>
+  The loader object
+</ParamField>
+
+<ParamField path="path" type="hydra_string" required>
+  Destination path for the icon file
+</ParamField>
+
+## String Management
+
+The C API provides utilities for working with string lists and maps.
+
+### hydra_create_string_list
+
+Creates a new string list.
+
+```c
+void* hydra_create_string_list();
+```
+
+<ResponseField name="return" type="void*">
+  Non-null pointer to the created string list
+</ResponseField>
+
+### hydra_string_list_destroy
+
+Destroys a string list.
+
+```c
+void hydra_string_list_destroy(void* list);
+```
+
+<ParamField path="list" type="void*" required>
+  The string list to destroy
+</ParamField>
+
+### hydra_string_list_get_count
+
+Gets the number of strings in the list.
+
+```c
+uint32_t hydra_string_list_get_count(const void* list);
+```
+
+<ParamField path="list" type="const void*" required>
+  The string list
+</ParamField>
+
+<ResponseField name="return" type="uint32_t">
+  Number of strings in the list
+</ResponseField>
+
+### hydra_string_list_get
+
+Gets a string at the specified index.
+
+```c
+hydra_string hydra_string_list_get(const void* list, uint32_t index);
+```
+
+<ParamField path="list" type="const void*" required>
+  The string list
+</ParamField>
+
+<ParamField path="index" type="uint32_t" required>
+  Index of the string to retrieve
+</ParamField>
+
+<ResponseField name="return" type="hydra_string">
+  The string at the specified index
+</ResponseField>
+
+### hydra_string_list_append
+
+Appends a string to the list.
+
+```c
+void hydra_string_list_append(void* list, hydra_string value);
+```
+
+<ParamField path="list" type="void*" required>
+  The string list
+</ParamField>
+
+<ParamField path="value" type="hydra_string" required>
+  The string to append
+</ParamField>
+
+**Example:**
+
+```c
+void* list = hydra_create_string_list();
+hydra_string str = {"example", 7};
+hydra_string_list_append(list, str);
+
+uint32_t count = hydra_string_list_get_count(list); // Returns 1
+
+hydra_string_list_destroy(list);
+```
+
+## Error Handling
+
+Most C API functions that can fail return NULL pointers or boolean values to indicate errors. Always check return values:
+
+```c
+void* ctx = hydra_create_emulation_context();
+if (!ctx) {
+    // Handle initialization failure
+    return;
+}
+
+void* loader = hydra_create_loader_from_path(game_path);
+if (!loader) {
+    // Handle loading failure
+    hydra_emulation_context_destroy(ctx);
+    return;
+}
+
+// Use the emulation context
+hydra_emulation_context_load_and_start(ctx, loader);
+
+// Cleanup
+hydra_loader_destroy(loader);
+hydra_emulation_context_destroy(ctx);
+```
+
+## Thread Safety
+
+The emulation context is designed to be used from a single thread. If you need to interact with the emulator from multiple threads, use proper synchronization mechanisms.
+
+The debugger API provides explicit locking functions:
+
+```c
+hydra_debugger_manager_lock();
+// Access debugger state
+hydra_debugger_manager_unlock();
+```
+
+## Language Bindings
+
+The C API is designed to be easily wrapped in other languages:
+
+### Swift Example
+
+```swift
+let ctx = hydra_create_emulation_context()
+defer { hydra_emulation_context_destroy(ctx) }
+
+let path = "/path/to/game.nsp"
+path.withHydraString { hydraPath in
+    let loader = hydra_create_loader_from_path(hydraPath)
+    defer { hydra_loader_destroy(loader) }
+    
+    hydra_emulation_context_load_and_start(ctx, loader)
+}
+
+while hydra_emulation_context_is_running(ctx) {
+    var dtUpdated = false
+    hydra_emulation_context_progress_frame(ctx, 1920, 1080, &dtUpdated)
+}
+```
+
+See `src/frontend/swiftui/Api.swift` for the complete Swift wrapper implementation.

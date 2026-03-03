@@ -1,0 +1,672 @@
+---
+title: 'Configuration API'
+description: 'Configure Hydra emulator settings programmatically'
+---
+
+## Overview
+
+The Configuration API allows you to programmatically configure all aspects of the Hydra emulator, including CPU backend, GPU renderer, audio settings, and paths.
+
+Configuration is managed through a singleton instance accessed via `Config::GetInstance()` in C++ or through the C API functions prefixed with `hydra_config_`.
+
+## Accessing Configuration
+
+### C++ API
+
+```cpp
+#include "common/config.hpp"
+
+auto& config = hydra::Config::GetInstance();
+config.GetCpuBackend() = hydra::CpuBackend::Dynarmic;
+config.Serialize(); // Save changes to disk
+```
+
+### C API
+
+```c
+uint32_t* backend = hydra_config_get_cpu_backend();
+*backend = HYDRA_CPU_BACKEND_DYNARMIC;
+hydra_config_serialize();
+```
+
+## Configuration Functions
+
+### hydra_config_serialize
+
+Saves the current configuration to disk.
+
+```c
+void hydra_config_serialize();
+```
+
+Configuration is saved to `{app_data_path}/config.toml`.
+
+### hydra_config_deserialize
+
+Loads configuration from disk.
+
+```c
+void hydra_config_deserialize();
+```
+
+If no configuration file exists, default values are loaded.
+
+### hydra_config_get_app_data_path
+
+Gets the application data directory path.
+
+```c
+hydra_string hydra_config_get_app_data_path();
+```
+
+<ResponseField name="return" type="hydra_string">
+  Path to the application data directory
+</ResponseField>
+
+## Backend Configuration
+
+### CPU Backend
+
+The CPU backend determines which ARM64 CPU emulation engine to use.
+
+#### HydraCpuBackend Enum
+
+```c
+typedef enum : uint32_t {
+    HYDRA_CPU_BACKEND_INVALID = 0,
+    HYDRA_CPU_BACKEND_APPLE_HYPERVISOR,
+    HYDRA_CPU_BACKEND_DYNARMIC,
+} HydraCpuBackend;
+```
+
+<ParamField path="HYDRA_CPU_BACKEND_INVALID" type="0">
+  Invalid/unset backend
+</ParamField>
+
+<ParamField path="HYDRA_CPU_BACKEND_APPLE_HYPERVISOR" type="1">
+  Apple's Hypervisor.framework for native ARM64 execution (macOS/iOS only)
+</ParamField>
+
+<ParamField path="HYDRA_CPU_BACKEND_DYNARMIC" type="2">
+  Dynarmic JIT compiler (cross-platform)
+</ParamField>
+
+#### hydra_config_get_cpu_backend
+
+Gets a pointer to the CPU backend setting.
+
+```c
+uint32_t* hydra_config_get_cpu_backend();
+```
+
+<ResponseField name="return" type="uint32_t*">
+  Pointer to the CPU backend setting (HydraCpuBackend enum value)
+</ResponseField>
+
+**Example:**
+
+```c
+uint32_t* cpu_backend = hydra_config_get_cpu_backend();
+if (*cpu_backend == HYDRA_CPU_BACKEND_INVALID) {
+    // Set to Dynarmic if not configured
+    *cpu_backend = HYDRA_CPU_BACKEND_DYNARMIC;
+    hydra_config_serialize();
+}
+```
+
+### GPU Renderer
+
+The GPU renderer determines which graphics API to use.
+
+#### HydraGpuRenderer Enum
+
+```c
+typedef enum : uint32_t {
+    HYDRA_GPU_RENDERER_INVALID = 0,
+    HYDRA_GPU_RENDERER_METAL,
+} HydraGpuRenderer;
+```
+
+<ParamField path="HYDRA_GPU_RENDERER_INVALID" type="0">
+  Invalid/unset renderer
+</ParamField>
+
+<ParamField path="HYDRA_GPU_RENDERER_METAL" type="1">
+  Metal graphics API (macOS/iOS only)
+</ParamField>
+
+<Note>
+Currently, only Metal is supported. Future versions may add Vulkan support.
+</Note>
+
+#### hydra_config_get_gpu_renderer
+
+Gets a pointer to the GPU renderer setting.
+
+```c
+uint32_t* hydra_config_get_gpu_renderer();
+```
+
+<ResponseField name="return" type="uint32_t*">
+  Pointer to the GPU renderer setting (HydraGpuRenderer enum value)
+</ResponseField>
+
+### Shader Backend
+
+The shader backend determines how Nintendo Switch shaders are compiled.
+
+#### HydraShaderBackend Enum
+
+```c
+typedef enum : uint32_t {
+    HYDRA_SHADER_BACKEND_INVALID = 0,
+    HYDRA_SHADER_BACKEND_MSL,
+    HYDRA_SHADER_BACKEND_AIR,
+} HydraShaderBackend;
+```
+
+<ParamField path="HYDRA_SHADER_BACKEND_INVALID" type="0">
+  Invalid/unset shader backend
+</ParamField>
+
+<ParamField path="HYDRA_SHADER_BACKEND_MSL" type="1">
+  Metal Shading Language - shaders compiled at runtime
+</ParamField>
+
+<ParamField path="HYDRA_SHADER_BACKEND_AIR" type="2">
+  Apple Intermediate Representation - pre-compiled shaders for better performance
+</ParamField>
+
+<Tip>
+AIR provides better performance but requires shader pre-compilation. MSL is more flexible but has higher runtime overhead.
+</Tip>
+
+#### hydra_config_get_shader_backend
+
+Gets a pointer to the shader backend setting.
+
+```c
+uint32_t* hydra_config_get_shader_backend();
+```
+
+<ResponseField name="return" type="uint32_t*">
+  Pointer to the shader backend setting (HydraShaderBackend enum value)
+</ResponseField>
+
+### Audio Backend
+
+The audio backend determines which audio output system to use.
+
+#### HydraAudioBackend Enum
+
+```c
+typedef enum : uint32_t {
+    HYDRA_AUDIO_BACKEND_INVALID = 0,
+    HYDRA_AUDIO_BACKEND_NULL,
+    HYDRA_AUDIO_BACKEND_CUBEB,
+} HydraAudioBackend;
+```
+
+<ParamField path="HYDRA_AUDIO_BACKEND_INVALID" type="0">
+  Invalid/unset audio backend
+</ParamField>
+
+<ParamField path="HYDRA_AUDIO_BACKEND_NULL" type="1">
+  No audio output (silent mode)
+</ParamField>
+
+<ParamField path="HYDRA_AUDIO_BACKEND_CUBEB" type="2">
+  Cubeb cross-platform audio library
+</ParamField>
+
+#### hydra_config_get_audio_backend
+
+Gets a pointer to the audio backend setting.
+
+```c
+uint32_t* hydra_config_get_audio_backend();
+```
+
+<ResponseField name="return" type="uint32_t*">
+  Pointer to the audio backend setting (HydraAudioBackend enum value)
+</ResponseField>
+
+## Display Configuration
+
+### Resolution
+
+The display resolution setting controls the output resolution of the emulator.
+
+#### HydraResolution Enum
+
+```c
+typedef enum : uint32_t {
+    HYDRA_RESOLUTION_INVALID = 0,
+    HYDRA_RESOLUTION_AUTO,
+    HYDRA_RESOLUTION_720P,
+    HYDRA_RESOLUTION_1080P,
+    HYDRA_RESOLUTION_1440P,
+    HYDRA_RESOLUTION_2160P,
+    HYDRA_RESOLUTION_4320P,
+    HYDRA_RESOLUTION_AUTO_EXACT,
+    HYDRA_RESOLUTION_CUSTOM,
+} HydraResolution;
+```
+
+<ParamField path="HYDRA_RESOLUTION_AUTO" type="1">
+  Automatically scale to native Switch resolution (720p docked, variable handheld)
+</ParamField>
+
+<ParamField path="HYDRA_RESOLUTION_720P" type="2">
+  1280x720 resolution
+</ParamField>
+
+<ParamField path="HYDRA_RESOLUTION_1080P" type="3">
+  1920x1080 resolution
+</ParamField>
+
+<ParamField path="HYDRA_RESOLUTION_1440P" type="4">
+  2560x1440 resolution
+</ParamField>
+
+<ParamField path="HYDRA_RESOLUTION_2160P" type="5">
+  3840x2160 resolution (4K)
+</ParamField>
+
+<ParamField path="HYDRA_RESOLUTION_4320P" type="6">
+  7680x4320 resolution (8K)
+</ParamField>
+
+<ParamField path="HYDRA_RESOLUTION_AUTO_EXACT" type="7">
+  Match exact native resolution without scaling
+</ParamField>
+
+<ParamField path="HYDRA_RESOLUTION_CUSTOM" type="8">
+  Use custom resolution specified by hydra_config_get_custom_display_resolution()
+</ParamField>
+
+#### hydra_config_get_display_resolution
+
+Gets a pointer to the display resolution setting.
+
+```c
+uint32_t* hydra_config_get_display_resolution();
+```
+
+<ResponseField name="return" type="uint32_t*">
+  Pointer to the display resolution setting (HydraResolution enum value)
+</ResponseField>
+
+#### hydra_config_get_custom_display_resolution
+
+Gets a pointer to the custom resolution setting.
+
+```c
+hydra_uint2* hydra_config_get_custom_display_resolution();
+```
+
+<ResponseField name="return" type="hydra_uint2*">
+  Pointer to custom resolution (width x, height y). Only used when display_resolution is HYDRA_RESOLUTION_CUSTOM.
+</ResponseField>
+
+**Example:**
+
+```c
+// Set custom 2560x1440 resolution
+uint32_t* resolution = hydra_config_get_display_resolution();
+*resolution = HYDRA_RESOLUTION_CUSTOM;
+
+hydra_uint2* custom_res = hydra_config_get_custom_display_resolution();
+custom_res->x = 2560;
+custom_res->y = 1440;
+
+hydra_config_serialize();
+```
+
+## Path Configuration
+
+### Firmware Path
+
+#### hydra_config_get_firmware_path
+
+Gets the firmware directory path.
+
+```c
+hydra_string hydra_config_get_firmware_path();
+```
+
+<ResponseField name="return" type="hydra_string">
+  Path to the Nintendo Switch firmware directory
+</ResponseField>
+
+#### hydra_config_set_firmware_path
+
+Sets the firmware directory path.
+
+```c
+void hydra_config_set_firmware_path(hydra_string value);
+```
+
+<ParamField path="value" type="hydra_string" required>
+  Path to the firmware directory
+</ParamField>
+
+### SD Card Path
+
+#### hydra_config_get_sd_card_path
+
+Gets the virtual SD card directory path.
+
+```c
+hydra_string hydra_config_get_sd_card_path();
+```
+
+<ResponseField name="return" type="hydra_string">
+  Path to the virtual SD card directory (default: `{app_data}/sdmc`)
+</ResponseField>
+
+#### hydra_config_set_sd_card_path
+
+Sets the virtual SD card directory path.
+
+```c
+void hydra_config_set_sd_card_path(hydra_string value);
+```
+
+<ParamField path="value" type="hydra_string" required>
+  Path to the SD card directory
+</ParamField>
+
+### Save Path
+
+#### hydra_config_get_save_path
+
+Gets the save data directory path.
+
+```c
+hydra_string hydra_config_get_save_path();
+```
+
+<ResponseField name="return" type="hydra_string">
+  Path to the save data directory (default: `{app_data}/save`)
+</ResponseField>
+
+#### hydra_config_set_save_path
+
+Sets the save data directory path.
+
+```c
+void hydra_config_set_save_path(hydra_string value);
+```
+
+<ParamField path="value" type="hydra_string" required>
+  Path to the save data directory
+</ParamField>
+
+### Sysmodules Path
+
+#### hydra_config_get_sysmodules_path
+
+Gets the system modules directory path.
+
+```c
+hydra_string hydra_config_get_sysmodules_path();
+```
+
+<ResponseField name="return" type="hydra_string">
+  Path to the sysmodules directory (default: `{app_data}/sysmodules`)
+</ResponseField>
+
+#### hydra_config_set_sysmodules_path
+
+Sets the system modules directory path.
+
+```c
+void hydra_config_set_sysmodules_path(hydra_string value);
+```
+
+<ParamField path="value" type="hydra_string" required>
+  Path to the sysmodules directory
+</ParamField>
+
+## Game and Plugin Configuration
+
+### hydra_config_get_game_paths
+
+Gets the list of game library paths.
+
+```c
+void* hydra_config_get_game_paths();
+```
+
+<ResponseField name="return" type="void*">
+  Pointer to a string list containing game library paths
+</ResponseField>
+
+**Example:**
+
+```c
+void* game_paths = hydra_config_get_game_paths();
+uint32_t count = hydra_string_list_get_count(game_paths);
+
+for (uint32_t i = 0; i < count; i++) {
+    hydra_string path = hydra_string_list_get(game_paths, i);
+    // Process each game path
+}
+```
+
+### hydra_config_get_loader_plugins
+
+Gets the list of loader plugins.
+
+```c
+void* hydra_config_get_loader_plugins();
+```
+
+<ResponseField name="return" type="void*">
+  Pointer to a loader plugin list
+</ResponseField>
+
+### hydra_config_get_patch_paths
+
+Gets the list of patch directories.
+
+```c
+void* hydra_config_get_patch_paths();
+```
+
+<ResponseField name="return" type="void*">
+  Pointer to a string list containing patch directory paths
+</ResponseField>
+
+## System Configuration
+
+### hydra_config_get_user_id
+
+Gets the active user ID.
+
+```c
+hydra_u128* hydra_config_get_user_id();
+```
+
+<ResponseField name="return" type="hydra_u128*">
+  Pointer to the 128-bit user ID
+</ResponseField>
+
+### hydra_config_get_handheld_mode
+
+Gets the handheld mode setting.
+
+```c
+bool* hydra_config_get_handheld_mode();
+```
+
+<ResponseField name="return" type="bool*">
+  Pointer to handheld mode flag. true for handheld mode, false for docked mode.
+</ResponseField>
+
+**Example:**
+
+```c
+bool* handheld = hydra_config_get_handheld_mode();
+*handheld = false; // Switch to docked mode
+hydra_config_serialize();
+```
+
+## Debugging Configuration
+
+### Logging
+
+#### hydra_config_get_log_output
+
+Gets the log output destination.
+
+```c
+uint32_t* hydra_config_get_log_output();
+```
+
+<ResponseField name="return" type="uint32_t*">
+  Pointer to log output setting (HydraLogOutput enum)
+</ResponseField>
+
+```c
+typedef enum : uint32_t {
+    HYDRA_LOG_OUTPUT_INVALID = 0,
+    HYDRA_LOG_OUTPUT_NONE,
+    HYDRA_LOG_OUTPUT_STD_OUT,
+    HYDRA_LOG_OUTPUT_FILE,
+} HydraLogOutput;
+```
+
+#### hydra_config_get_log_fs_access
+
+Gets the filesystem access logging flag.
+
+```c
+bool* hydra_config_get_log_fs_access();
+```
+
+<ResponseField name="return" type="bool*">
+  Pointer to flag controlling filesystem access logging
+</ResponseField>
+
+#### hydra_config_get_debug_logging
+
+Gets the debug logging flag.
+
+```c
+bool* hydra_config_get_debug_logging();
+```
+
+<ResponseField name="return" type="bool*">
+  Pointer to flag enabling verbose debug logging
+</ResponseField>
+
+### GDB Server
+
+#### hydra_config_get_gdb_enabled
+
+Gets the GDB server enabled flag.
+
+```c
+bool* hydra_config_get_gdb_enabled();
+```
+
+<ResponseField name="return" type="bool*">
+  Pointer to flag enabling the GDB remote debugging server
+</ResponseField>
+
+#### hydra_config_get_gdb_port
+
+Gets the GDB server port.
+
+```c
+uint16_t* hydra_config_get_gdb_port();
+```
+
+<ResponseField name="return" type="uint16_t*">
+  Pointer to GDB server port number (default: 1234)
+</ResponseField>
+
+#### hydra_config_get_gdb_wait_for_client
+
+Gets the GDB wait for client flag.
+
+```c
+bool* hydra_config_get_gdb_wait_for_client();
+```
+
+<ResponseField name="return" type="bool*">
+  Pointer to flag that makes emulator wait for GDB client connection before starting
+</ResponseField>
+
+**Example:**
+
+```c
+// Enable GDB debugging on port 5555
+bool* gdb_enabled = hydra_config_get_gdb_enabled();
+*gdb_enabled = true;
+
+uint16_t* gdb_port = hydra_config_get_gdb_port();
+*gdb_port = 5555;
+
+bool* wait_for_client = hydra_config_get_gdb_wait_for_client();
+*wait_for_client = true;
+
+hydra_config_serialize();
+```
+
+## C++ Config Class
+
+The C++ API provides a more convenient interface through the `Config` class:
+
+```cpp
+namespace hydra {
+
+class Config {
+public:
+    static Config& GetInstance();
+    
+    void LoadDefaults();
+    void Serialize();
+    void Deserialize();
+    void Log();
+    
+    // Getters return references for direct modification
+    CpuBackend& GetCpuBackend();
+    GpuRenderer& GetGpuRenderer();
+    ShaderBackend& GetShaderBackend();
+    Resolution& GetDisplayResolution();
+    AudioBackend& GetAudioBackend();
+    
+    const std::string_view GetAppDataPath() const;
+    const std::string_view GetLogsPath() const;
+    // ... more getters
+};
+
+}
+```
+
+**Example:**
+
+```cpp
+#include "common/config.hpp"
+
+auto& config = hydra::Config::GetInstance();
+
+// Load config from disk
+config.Deserialize();
+
+// Modify settings
+config.GetCpuBackend() = hydra::CpuBackend::Dynarmic;
+config.GetDisplayResolution() = hydra::Resolution::_1080p;
+config.GetHandheldMode() = false;
+
+// Save changes
+config.Serialize();
+
+// Log current configuration
+config.Log();
+```
+
+See `src/common/config.hpp` for the complete implementation.

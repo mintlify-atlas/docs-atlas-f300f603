@@ -1,0 +1,374 @@
+---
+title: Controls
+description: Configure keyboard and controller input for Hydra
+---
+
+Hydra supports both keyboard and game controller input using Apple's GameController framework. This guide covers default controls and how to customize them.
+
+## Input Devices
+
+<CardGroup cols={2}>
+  <Card title="Keyboard" icon="keyboard">
+    Built-in keyboard support with customizable mappings
+  </Card>
+  <Card title="Game Controllers" icon="gamepad">
+    Support for MFi and compatible controllers
+  </Card>
+</CardGroup>
+
+## Default Keyboard Controls
+
+Hydra uses keyboard input to emulate Nintendo Switch controller buttons:
+
+### Movement and D-Pad
+
+<Tabs>
+  <Tab title="Arrow Keys">
+    **D-Pad / Menu Navigation**
+    
+    | Key | Switch Button |
+    |-----|---------------|
+    | ↑ (Up Arrow) | D-Pad Up |
+    | ↓ (Down Arrow) | D-Pad Down |
+    | ← (Left Arrow) | D-Pad Left |
+    | → (Right Arrow) | D-Pad Right |
+  </Tab>
+  
+  <Tab title="WASD">
+    **Left Analog Stick**
+    
+    | Key | Direction |
+    |-----|----------|
+    | W | Stick Up |
+    | S | Stick Down |
+    | A | Stick Left |
+    | D | Stick Right |
+  </Tab>
+</Tabs>
+
+### Action Buttons
+
+**Face Buttons (Nintendo Layout)**
+
+| Key | Switch Button | Description |
+|-----|---------------|-------------|
+| K | A | Confirm (bottom) |
+| J | B | Cancel (right) |
+| I | X | Left action |
+| L | Y | Top action |
+
+<Note>
+  The layout follows Nintendo's button positioning: A is on the bottom, B on the right, X on the left, and Y on the top.
+</Note>
+
+### Shoulder Buttons
+
+| Key | Switch Button |
+|-----|---------------|
+| Q | L (Left shoulder) |
+| E | R (Right shoulder) |
+| U | ZL (Left trigger) |
+| O | ZR (Right trigger) |
+
+### System Buttons
+
+| Key | Switch Button |
+|-----|---------------|
+| Enter | + (Plus/Start) |
+| Backspace | - (Minus/Select) |
+| Space | Capture |
+
+### Right Analog Stick
+
+| Key | Direction |
+|-----|----------|
+| T | Stick R Up |
+| G | Stick R Down |
+| F | Stick R Left |
+| H | Stick R Right |
+
+### Stick Click Buttons
+
+| Key | Switch Button |
+|-----|---------------|
+| R | L Stick Click |
+| Y | R Stick Click |
+
+### Additional Keys
+
+The following keys are recognized by Hydra's keyboard input system:
+
+**Letters:** Q, W, E, R, T, Y, U, I, O, P, A, S, D, F, G, H, J, K, L, Z, X, C, V, B, N, M
+
+**Special Keys:**
+- Tab
+- Space
+- Enter
+- Backspace
+- Arrow keys (Up, Down, Left, Right)
+
+**Modifier Keys:**
+- Left/Right Shift
+- Left/Right Control
+- Left/Right Alt
+- Left/Right Super (Command/Windows)
+
+<Info>
+  Number keys are planned but not yet implemented in the current version.
+</Info>
+
+## Game Controllers
+
+Hydra supports game controllers through Apple's GameController framework.
+
+### Supported Controllers
+
+<CardGroup cols={2}>
+  <Card title="PlayStation Controllers" icon="playstation">
+    DualShock 4, DualSense (PS5)
+  </Card>
+  <Card title="Xbox Controllers" icon="xbox">
+    Xbox One, Xbox Series X|S
+  </Card>
+  <Card title="Nintendo Controllers" icon="n">
+    Pro Controller, Joy-Cons (via Bluetooth)
+  </Card>
+  <Card title="MFi Controllers" icon="gamepad">
+    Made for iPhone certified controllers
+  </Card>
+</CardGroup>
+
+### Controller Mapping
+
+**Nintendo Switch Layout:**
+
+| Controller Input | Switch Button |
+|-----------------|---------------|
+| A | A |
+| B | B |
+| X | X |
+| Y | Y |
+| Left Stick | Left Stick |
+| Right Stick | Right Stick |
+| L/LB | L |
+| R/RB | R |
+| LT/L2 | ZL |
+| RT/R2 | ZR |
+| Start/Options | + (Plus) |
+| Select/View | - (Minus) |
+| D-Pad | D-Pad |
+| Left Stick Click | L Stick |
+| Right Stick Click | R Stick |
+
+### Analog Stick Sensitivity
+
+Analog stick values are processed with a threshold:
+
+- **Threshold:** 0.5 (50%)
+- Stick values above 0.5 register as "pressed" for button mappings
+- Full analog values preserved for games using stick input
+
+<Note>
+  This threshold prevents stick drift from registering as input while maintaining precise analog control.
+</Note>
+
+## Input Profiles
+
+Hydra supports multiple input profiles for customizing controls:
+
+### Accessing Input Profiles
+
+1. Open **Settings** (⌘+,)
+2. Navigate to **Input** section
+3. Select or create a profile
+
+### Default Profile
+
+Hydra includes a "Default" profile with the standard keyboard mappings listed above.
+
+### Creating Custom Profiles
+
+<Steps>
+  <Step title="Open Settings">
+    Navigate to Settings > Input
+  </Step>
+  
+  <Step title="Add Profile">
+    Click the "+" button to create a new profile
+  </Step>
+  
+  <Step title="Configure Mappings">
+    Assign keys to each Switch button
+  </Step>
+  
+  <Step title="Save">
+    Your profile is automatically saved to `config.toml`
+  </Step>
+</Steps>
+
+### Profile Storage
+
+Input profiles are stored in the configuration file:
+
+```toml
+[Input]
+profiles = [
+  "Default",
+  # Profile data stored as strings
+]
+```
+
+<Info>
+  You can have multiple profiles for different games or play styles.
+</Info>
+
+## SL/SR Buttons (Joy-Con)
+
+For sideways Joy-Con mode, Hydra supports SL and SR buttons:
+
+| Switch Button | Description |
+|---------------|-------------|
+| Left SL | Left Joy-Con SL (sideways mode) |
+| Left SR | Left Joy-Con SR (sideways mode) |
+| Right SL | Right Joy-Con SL (sideways mode) |
+| Right SR | Right Joy-Con SR (sideways mode) |
+
+<Note>
+  These buttons are primarily used when Joy-Cons are held horizontally as individual controllers.
+</Note>
+
+## Keyboard Input Implementation
+
+Hydra's keyboard input system (implemented in `src/core/input/keyboard.hpp` and `src/core/input/apple_gc/keyboard.mm`):
+
+### Key Detection
+
+- Uses Apple's GameController framework for consistent input handling
+- Keys are mapped to `GCKeyCode` values
+- Supports both key press detection and axis values (0.0 or 1.0 for keyboards)
+
+### Input Processing
+
+```cpp
+// Keyboard keys act as digital buttons
+IsPressed(Key) -> bool
+GetAxisValue(Key) -> 1.0 (pressed) or 0.0 (not pressed)
+```
+
+## Controller Input Implementation
+
+Controller input (in `src/core/input/controller.hpp`):
+
+### Button vs. Analog
+
+- **Buttons:** Return pressed/not pressed state
+- **Analog sticks:** Return float values 0.0 to 1.0
+- Stick inputs > 0.5 treated as "pressed" for button checks
+
+### Supported Inputs
+
+```cpp
+enum ControllerInput {
+  A, B, X, Y,           // Face buttons
+  L, R, ZL, ZR,         // Shoulders/triggers
+  Plus, Minus,          // System buttons
+  StickL, StickR,       // Stick clicks
+  Left, Up, Right, Down, // D-Pad
+  StickL/R + Direction,  // Analog directions
+  LeftSL, LeftSR,       // Joy-Con SL/SR
+  RightSL, RightSR
+}
+```
+
+## Troubleshooting Controls
+
+<AccordionGroup>
+  <Accordion title="Keyboard input not working">
+    **Check:**
+    - Hydra window has focus
+    - You're in-game (not in menus)
+    - Key is supported (see default controls above)
+    
+    **Try:**
+    - Click on the game window
+    - Check if other keys work
+    - Restart Hydra
+  </Accordion>
+  
+  <Accordion title="Controller not detected">
+    **Check:**
+    - Controller is connected (Bluetooth or USB)
+    - Controller is paired with macOS
+    - Controller works in System Settings
+    
+    **Try:**
+    - Reconnect controller
+    - Restart Hydra after connecting
+    - Check macOS Bluetooth settings
+  </Accordion>
+  
+  <Accordion title="Wrong button mappings">
+    **For controllers:**
+    - Different controller types may have different button labels
+    - Check if your controller is MFi certified
+    - Try creating a custom input profile
+    
+    **For keyboard:**
+    - Verify you're using the correct profile
+    - Check for keyboard layout differences (QWERTY vs AZERTY)
+  </Accordion>
+  
+  <Accordion title="Stick drift or sensitivity issues">
+    **Check:**
+    - Controller deadzone settings in macOS
+    - Physical controller condition
+    
+    **Try:**
+    - Clean controller sticks
+    - Adjust sensitivity in controller settings
+    - Use a different controller to test
+  </Accordion>
+</AccordionGroup>
+
+## Advanced: Custom Input Mapping
+
+For advanced users who want to modify input beyond the UI:
+
+### Editing config.toml
+
+Input profiles are stored as arrays in the configuration:
+
+```toml
+[Input]
+profiles = [
+  "Default",
+  "",  # Additional profile slots
+  "",
+  "",
+]
+```
+
+<Warning>
+  Manually editing input profiles requires understanding the profile string format. Incorrect values may cause input to stop working.
+</Warning>
+
+### Profile Format
+
+The exact profile string format is managed internally by Hydra. It's recommended to use the Settings UI for creating and editing profiles.
+
+## Emulation Shortcuts
+
+These shortcuts control the emulator itself (not game input):
+
+| Shortcut | Function |
+|----------|----------|
+| ⌘+, | Open Settings |
+| ⌘+L | Load from file |
+| ⌘+T | Take screenshot |
+| ⌘+O | Toggle handheld/docked mode |
+| ⌘+P | Capture GPU frame (debug) |
+| ESC | Stop emulation |
+
+<Info>
+  These shortcuts work globally in Hydra and won't be sent to the emulated game.
+</Info>

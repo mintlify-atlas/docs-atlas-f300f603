@@ -1,0 +1,665 @@
+---
+title: Troubleshooting
+description: Solutions to common issues and problems with Hydra emulator
+---
+
+This guide helps you diagnose and fix common problems with Hydra Nintendo Switch emulator.
+
+## Quick Diagnostics
+
+Before diving into specific issues, run through this checklist:
+
+<Steps>
+  <Step title="Check Logs">
+    Logs are your first source of diagnostic information.
+    
+    **Log location:**
+    - macOS: `~/Library/Logs/Hydra/`
+    - Linux: `~/.config/Hydra/logs/`
+    - Windows: `%APPDATA%/Hydra/logs/`
+    
+    Look for ERROR or FATAL messages.
+  </Step>
+  
+  <Step title="Verify Configuration">
+    Open Settings (⌘+,) and check:
+    - ✅ Firmware path is set and valid
+    - ✅ Game paths contain games
+    - ✅ CPU/GPU settings are appropriate
+    - ✅ Log output is not set to "none"
+  </Step>
+  
+  <Step title="Test with Different Game">
+    Try loading a different game to determine if the issue is:
+    - Game-specific (one game fails)
+    - System-wide (all games fail)
+  </Step>
+  
+  <Step title="Check System Resources">
+    Monitor:
+    - CPU usage (should be high during emulation)
+    - Memory usage (games can use several GB)
+    - Disk space (ensure sufficient free space)
+  </Step>
+</Steps>
+
+## Common Issues
+
+<AccordionGroup>
+  <Accordion title="Hydra won't launch" icon="triangle-exclamation">
+    
+    ### Symptoms
+    - Application crashes immediately on launch
+    - Window doesn't appear
+    - Dock icon bounces and disappears
+    
+    ### Solutions
+    
+    **1. Check macOS version**
+    - Hydra requires macOS 11.0 (Big Sur) or later
+    - Verify: Apple menu > About This Mac
+    
+    **2. Reset configuration**
+    ```bash
+    # Backup current config
+    mv ~/Library/Application\ Support/Hydra/config.toml ~/Desktop/config.toml.backup
+    
+    # Launch Hydra (creates new default config)
+    ```
+    
+    **3. Check console for errors**
+    ```bash
+    # Run from terminal to see crash logs
+    open -a Hydra
+    # Watch Console.app for errors
+    ```
+    
+    **4. Reinstall Hydra**
+    - Delete app from Applications
+    - Empty Trash
+    - Redownload and install
+    
+  </Accordion>
+  
+  <Accordion title="Game won't load" icon="circle-xmark">
+    
+    ### Symptoms
+    - Game appears in library but won't start
+    - Black screen when launching
+    - Immediate crash after selecting game
+    
+    ### Diagnostics
+    
+    **Check log file for:**
+    ```
+    ERROR: Failed to load game
+    FATAL: Missing firmware
+    ERROR: Invalid NCA file
+    ```
+    
+    ### Solutions by Cause
+    
+    <Tabs>
+      <Tab title="Missing Firmware">
+        **Error indicates:** Font files or system archives not found
+        
+        **Fix:**
+        1. Verify firmware path: Settings > System > Firmware Path
+        2. Ensure firmware directory contains `.nca` files
+        3. Check for required files:
+           - `0100000000000811.nca` (FontStandard)
+           - `0100000000000810.nca` (FontNintendoExtension)
+        
+        See [Firmware Guide](/guide/firmware) for detailed instructions.
+      </Tab>
+      
+      <Tab title="Corrupted Game File">
+        **Error indicates:** NCA or NRO file is damaged
+        
+        **Fix:**
+        1. Re-dump the game from your Switch
+        2. Verify file integrity (check file size)
+        3. Try a different game file format if available
+        4. Check disk for errors
+      </Tab>
+      
+      <Tab title="Unsupported Format">
+        **Error indicates:** File format not recognized
+        
+        **Fix:**
+        1. Verify file extension is `.nro` or `.nca`
+        2. Check if game requires loader plugin
+        3. Ensure file is actually a Switch game (not 3DS, etc.)
+      </Tab>
+    </Tabs>
+    
+  </Accordion>
+  
+  <Accordion title="Graphics issues" icon="image">
+    
+    ### Black Screen
+    
+    **Possible causes:**
+    - Shader compilation failure
+    - GPU driver issue
+    - Incompatible shader backend
+    
+    **Solutions:**
+    
+    1. **Switch to MSL shader backend**
+       - Settings > Graphics > Shader backend > MSL
+       - Restart Hydra
+    
+    2. **Check display resolution**
+       - Settings > Graphics > Display resolution
+       - Try "Auto" or "720p"
+    
+    3. **Verify Metal support**
+       ```bash
+       # Check GPU info
+       system_profiler SPDisplaysDataType
+       ```
+       Ensure Metal is supported
+    
+    <Warning>
+      AIR shader backend is currently broken. Always use MSL.
+    </Warning>
+    
+    ### Graphical Glitches
+    
+    **Symptoms:**
+    - Corrupted textures
+    - Flickering objects
+    - Missing graphics
+    - Wrong colors
+    
+    **Try:**
+    1. Lower resolution to 1080p or 720p
+    2. Capture GPU frame for debugging (⌘+P)
+    3. Check log for shader errors
+    4. Update macOS to latest version
+    5. Reset shader cache (delete and restart)
+    
+    ### Performance Issues
+    
+    **Symptoms:**
+    - Low FPS (frames per second)
+    - Stuttering
+    - Audio crackling
+    
+    **Optimization steps:**
+    
+    <Steps>
+      <Step title="Use Apple Hypervisor">
+        Settings > CPU > CPU backend > Apple Hypervisor
+        
+        Provides best performance on macOS.
+      </Step>
+      
+      <Step title="Lower Resolution">
+        Settings > Graphics > Display resolution > 720p
+        
+        Higher resolutions require more GPU power.
+      </Step>
+      
+      <Step title="Close Other Apps">
+        Free up CPU and memory by closing:
+        - Web browsers with many tabs
+        - Video editing software
+        - Other games or emulators
+      </Step>
+      
+      <Step title="Monitor Resources">
+        Open Activity Monitor:
+        - Check CPU usage per core
+        - Verify sufficient free RAM
+        - Look for competing processes
+      </Step>
+    </Steps>
+    
+  </Accordion>
+  
+  <Accordion title="Audio problems" icon="volume-xmark">
+    
+    ### No Audio
+    
+    **Check:**
+    1. Audio backend: Settings > Audio > Audio backend
+    2. Should be "Cubeb" (not "Null")
+    3. macOS system volume is not muted
+    4. Output device is correct
+    
+    **Fix:**
+    ```toml
+    # In config.toml
+    [Audio]
+    backend = "Cubeb"  # Not "Null"
+    ```
+    
+    ### Audio Crackling/Stuttering
+    
+    **Causes:**
+    - CPU bottleneck (can't maintain frame rate)
+    - Audio buffer underruns
+    - Background processes interfering
+    
+    **Solutions:**
+    1. Follow performance optimization steps above
+    2. Close audio-intensive apps (music players, DAWs)
+    3. Check CPU usage in Activity Monitor
+    4. Try disabling audio temporarily to test:
+       ```toml
+       [Audio]
+       backend = "Null"
+       ```
+    
+  </Accordion>
+  
+  <Accordion title="Controls not working" icon="gamepad">
+    
+    ### Keyboard Input Issues
+    
+    **Check:**
+    - Hydra window has focus (click on it)
+    - You're in-game (not in a menu)
+    - Using supported keys (see [Controls](/guide/controls))
+    
+    **Debug:**
+    1. Test with different keys
+    2. Try arrow keys for D-pad
+    3. Check if ANY keys work
+    4. Verify keyboard works in other apps
+    
+    ### Controller Not Detected
+    
+    **Troubleshooting steps:**
+    
+    <Steps>
+      <Step title="Verify Connection">
+        - Check Bluetooth or USB connection
+        - Controller should appear in System Settings > Bluetooth
+        - Try reconnecting
+      </Step>
+      
+      <Step title="Test in macOS">
+        Open a game that supports controllers to verify it works system-wide
+      </Step>
+      
+      <Step title="Restart Hydra">
+        Controllers should be connected BEFORE launching Hydra
+        
+        1. Connect controller
+        2. Launch Hydra
+        3. Load game
+      </Step>
+      
+      <Step title="Check Compatibility">
+        Verify controller is supported:
+        - PlayStation DualShock 4/DualSense
+        - Xbox One/Series controllers
+        - Nintendo Pro Controller
+        - MFi certified controllers
+      </Step>
+    </Steps>
+    
+  </Accordion>
+  
+  <Accordion title="Save data issues" icon="floppy-disk">
+    
+    ### Save Not Loading
+    
+    **Check:**
+    1. Save path: Settings > System > Save Path
+    2. Save file exists: `{save_path}/{title_id}/{user_id}/`
+    3. User ID matches
+    4. File permissions (should be readable/writable)
+    
+    ### Save Corruption
+    
+    **Symptoms:**
+    - Game says "corrupted save data"
+    - Progress lost
+    - Cannot load save
+    
+    **Recovery:**
+    1. Check for backup saves (macOS Time Machine)
+    2. Try different user profile
+    3. Look in save directory for `.bak` files
+    4. May need to start new save
+    
+    **Prevention:**
+    ```bash
+    # Regular backups
+    cp -r ~/Library/Application\ Support/Hydra/save ~/Desktop/save_backup_$(date +%Y%m%d)
+    ```
+    
+  </Accordion>
+  
+  <Accordion title="Crashes and instability" icon="bomb">
+    
+    ### Random Crashes
+    
+    **Gather information:**
+    1. Check log file timestamp matching crash
+    2. Note what you were doing when it crashed
+    3. Check macOS Console.app for crash reports
+    
+    **Common causes:**
+    
+    <Tabs>
+      <Tab title="Segmentation Fault">
+        **Error:** SIGSEGV or segfault in logs
+        
+        **Cause:** Invalid memory access
+        
+        **Try:**
+        1. Enable recovery: Settings > Debug > Recover from segfault
+           ```toml
+           [Debug]
+           recover_from_segfault = true
+           ```
+        2. Check if specific game or game action triggers it
+        3. Report with log file
+        
+        <Warning>
+          Recovery mode is experimental and may cause data corruption.
+        </Warning>
+      </Tab>
+      
+      <Tab title="Out of Memory">
+        **Symptoms:**
+        - Crash after playing for a while
+        - macOS shows low memory warning
+        - System becomes sluggish
+        
+        **Fix:**
+        1. Close other applications
+        2. Restart Hydra periodically
+        3. Check for memory leaks in logs
+        4. Upgrade RAM if possible
+      </Tab>
+      
+      <Tab title="GPU Errors">
+        **Symptoms:**
+        - Crash during shader compilation
+        - Metal API errors in logs
+        - GPU driver messages
+        
+        **Fix:**
+        1. Update macOS to latest version
+        2. Switch to MSL shader backend
+        3. Lower graphics settings
+        4. Check for GPU overheating
+      </Tab>
+    </Tabs>
+    
+    ### Freezing
+    
+    **If Hydra becomes unresponsive:**
+    
+    1. **Force quit:**
+       - Option + Command + Esc
+       - Select Hydra
+       - Click Force Quit
+    
+    2. **Check logs** before restarting to see what caused freeze
+    
+    3. **Common causes:**
+       - Infinite loop in emulated code
+       - Deadlock in threading
+       - GPU hang
+    
+  </Accordion>
+</AccordionGroup>
+
+## Debug Settings
+
+For troubleshooting, enable enhanced logging:
+
+### Enable Debug Logging
+
+Settings > Debug:
+
+```toml
+[Debug]
+log_output = "file"          # Save to log file
+log_fs_access = true          # Log filesystem operations
+debug_logging = true          # Verbose debug messages
+```
+
+<Warning>
+  Debug logging generates large log files and may impact performance. Disable when not needed.
+</Warning>
+
+### Log File Analysis
+
+Key log levels:
+
+- **INFO** - Normal operation
+- **WARN** - Potential issues (yellow flags)
+- **ERROR** - Problems that may affect functionality
+- **FATAL** - Critical errors causing crashes
+
+**Search for:**
+```
+ERROR:
+FATAL:
+Failed to
+Cannot find
+Assert failed
+```
+
+### GDB Debugging
+
+For developers debugging emulated code:
+
+```toml
+[Debug]
+gdb_enabled = true
+gdb_port = 1234
+gdb_wait_for_client = false
+```
+
+Connect with:
+```bash
+gdb
+(gdb) target remote localhost:1234
+```
+
+<Info>
+  GDB debugging is for emulator development, not regular use.
+</Info>
+
+## Debugger View
+
+Hydra includes a built-in debugger:
+
+### Accessing Debugger
+
+1. Enable debug settings
+2. Launch a game
+3. Open debugger window (if available)
+
+### Debugger Features
+
+- **Thread list** - View emulated threads
+- **Thread status** - Running, paused, crashed
+- **Messages** - Debug messages from emulated code
+- **Stack traces** - Call stacks for crashes
+- **Break reasons** - Why thread stopped
+
+### Interpreting Messages
+
+```
+[LogLevel] [Class] Message
+File: source_file.cpp:123
+Function: function_name()
+```
+
+**Log Classes:**
+- `Horizon` - Nintendo Switch OS layer
+- `Kernel` - Kernel operations
+- `Common` - General emulator
+- `GPU` - Graphics
+- `Audio` - Audio system
+- `Input` - Input handling
+
+## Getting Help
+
+### Before Reporting Issues
+
+<Steps>
+  <Step title="Reproduce the Problem">
+    Ensure the issue happens consistently:
+    - Try multiple times
+    - Note exact steps to reproduce
+    - Test with different games if applicable
+  </Step>
+  
+  <Step title="Gather Information">
+    Collect:
+    - Hydra version
+    - macOS version
+    - Mac model (Apple Silicon or Intel)
+    - Game name and format
+    - Log file showing the error
+    - Screenshots/video if relevant
+  </Step>
+  
+  <Step title="Check Existing Issues">
+    Search for similar problems:
+    - GitHub issues
+    - Community forums
+    - Documentation
+  </Step>
+  
+  <Step title="Provide Clear Description">
+    When reporting:
+    - ✅ Steps to reproduce
+    - ✅ Expected vs actual behavior
+    - ✅ Relevant log excerpts
+    - ✅ System information
+    - ❌ "It doesn't work"
+    - ❌ Screenshots of text (paste text instead)
+  </Step>
+</Steps>
+
+### Log File Submission
+
+When sharing logs:
+
+1. **Use a paste service** (GitHub Gist, Pastebin)
+2. **Include timestamp** of when issue occurred
+3. **Trim to relevant section** (before/during/after error)
+4. **Remove sensitive information** (usernames, paths if needed)
+
+**Good log excerpt:**
+```
+[2024-03-03 12:34:56] INFO  Hydra: Loading game: Example Game
+[2024-03-03 12:34:57] ERROR GPU: Shader compilation failed
+[2024-03-03 12:34:57] ERROR GPU: Invalid MSL source
+[2024-03-03 12:34:57] FATAL Hydra: Failed to initialize renderer
+```
+
+## Advanced Troubleshooting
+
+### Clean Reinstall
+
+For persistent issues:
+
+```bash
+# 1. Backup important data
+cp -r ~/Library/Application\ Support/Hydra ~/Desktop/Hydra_backup
+
+# 2. Remove all Hydra data
+rm -rf ~/Library/Application\ Support/Hydra
+rm -rf ~/Library/Logs/Hydra
+rm -rf ~/Library/Caches/Hydra
+
+# 3. Delete application
+rm -rf /Applications/Hydra.app
+
+# 4. Reinstall Hydra
+
+# 5. Restore only config if needed
+cp ~/Desktop/Hydra_backup/config.toml ~/Library/Application\ Support/Hydra/
+```
+
+### Diagnosing Metal Issues
+
+Check Metal support:
+
+```bash
+system_profiler SPDisplaysDataType | grep -i metal
+```
+
+Should show: `Metal: Supported` or `Metal Family: ...`
+
+### File System Debugging
+
+Enable filesystem logging:
+
+```toml
+[Debug]
+log_fs_access = true
+```
+
+Shows all file operations in log:
+```
+FS: Open /firmware/FontStandard
+FS: Read 1024 bytes from offset 0
+FS: File not found: /save/0100..../user.dat
+```
+
+Useful for diagnosing:
+- Missing files
+- Permission errors
+- Path issues
+
+## Performance Profiling
+
+Monitor performance:
+
+1. **FPS counter** - Check frame time average
+2. **Activity Monitor** - CPU per-core usage
+3. **GPU History** - GPU utilization
+4. **Temperature** - Check for thermal throttling
+
+**Ideal performance:**
+- 60 FPS for most games
+- High CPU usage on 1-2 cores
+- Moderate GPU usage
+- Stable frame times
+
+## Known Issues
+
+<Warning>
+  **AIR Shader Backend**
+  
+  The AIR (Apple Intermediate Representation) shader backend is currently non-functional. Always use MSL.
+</Warning>
+
+<Info>
+  **Number Keys**
+  
+  Number key support for keyboard input is not yet implemented.
+</Info>
+
+## Still Need Help?
+
+If you've tried everything:
+
+1. **Review this guide** thoroughly
+2. **Check [Configuration](/guide/configuration)** for settings issues
+3. **Read [Firmware](/guide/firmware)** if firmware-related
+4. **Search existing issues** on GitHub
+5. **Ask in community forums** with full details
+6. **Report a bug** with reproduction steps and logs
+
+Provide:
+- Hydra version
+- macOS version  
+- Hardware (Apple Silicon / Intel)
+- Full log file
+- Exact steps to reproduce
+- What you've already tried

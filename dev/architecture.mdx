@@ -1,0 +1,412 @@
+---
+title: Architecture
+description: Technical architecture and design of the Hydra emulator
+---
+
+## Overview
+
+Hydra is a Nintendo Switch emulator built for macOS, designed to leverage Apple Silicon and Metal graphics API for optimal performance. The emulator uses a modular architecture separating hardware emulation, operating system services, and frontend presentation.
+
+## Project Structure
+
+The codebase is organized into three main directories:
+
+```
+src/
+├── common/          # Shared utilities and I/O
+├── core/            # Emulation core (HLE)
+└── frontend/        # User interface layers
+```
+
+### Component Overview
+
+<CodeGroup>
+```plaintext Core Components
+core/
+├── hw/                    # Hardware emulation
+│   └── tegra_x1/         # NVIDIA Tegra X1 SoC
+│       ├── cpu/          # ARM CPU emulation
+│       └── gpu/          # Maxwell GPU emulation
+├── horizon/               # Nintendo OS (HLE)
+│   ├── kernel/           # Kernel services
+│   ├── services/         # System services
+│   ├── filesystem/       # File system layer
+│   ├── loader/           # Game loaders
+│   └── display/          # Display management
+├── audio/                 # Audio subsystem
+├── input/                 # Input handling
+└── debugger/              # GDB debugger
+```
+
+```plaintext Frontend Options
+frontend/
+├── sdl3/          # SDL3 frontend (macOS 13.0+)
+├── swiftui/       # SwiftUI frontend (macOS 15.0+)
+└── native/        # Platform-specific bridges
+```
+</CodeGroup>
+
+## Core Architecture
+
+### Hardware Emulation Layer
+
+Hydra emulates the Nintendo Switch's NVIDIA Tegra X1 system-on-chip:
+
+#### CPU Emulation
+
+Two CPU backend options are available:
+
+**Dynarmic Backend** (Always Available)
+- Dynamic recompiler for ARMv8-A architecture
+- Cross-platform JIT compilation
+- Used on Intel Macs and as fallback
+- Location: `src/core/hw/tegra_x1/cpu/dynarmic/`
+
+**Hypervisor Backend** (Apple Silicon Only)
+- Uses macOS Hypervisor.framework
+- Native ARM64 execution with hardware virtualization
+- Significantly faster than dynarmic on Apple Silicon
+- Requires specific entitlements
+- Location: `src/core/hw/tegra_x1/cpu/hypervisor/`
+
+<Note>
+  The Hypervisor backend is automatically enabled on macOS with Apple Silicon. It provides near-native CPU performance by leveraging hardware virtualization.
+</Note>
+
+#### GPU Emulation
+
+Hydra emulates the NVIDIA Maxwell GPU architecture using Metal:
+
+- **GPU Core**: `src/core/hw/tegra_x1/gpu/gpu.hpp`
+- **Graphics Engines**:
+  - 3D Engine: `engines/3d.cpp` (Maxwell 3D graphics pipeline)
+  - 2D Engine: `engines/2d.cpp` (2D blitting operations)
+  - Compute Engine: `engines/compute.cpp` (GPGPU compute)
+  - DMA Engine: `engines/copy.cpp` (memory transfers)
+
+**Shader Pipeline**:
+1. **Decompiler**: Converts NVIDIA shader bytecode to IR (`shader_decompiler/`)
+2. **IR Optimization**: Analyzes and optimizes intermediate representation
+3. **Metal Codegen**: Emits Metal Shading Language code (`codegen/lang/msl/`)
+4. **Caching**: Compiled shaders cached for reuse (`shader_cache.cpp`)
+
+**Renderer Components**:
+- **Command Buffer**: Metal command encoding (`renderer/metal/command_buffer.cpp`)
+- **Buffer Cache**: Vertex/index buffer management (`renderer/buffer_cache.cpp`)
+- **Texture Cache**: Texture format conversion and caching (`renderer/texture_cache.cpp`)
+- **Pipeline Cache**: Graphics pipeline state objects (`renderer/pipeline_cache.cpp`)
+
+### Horizon OS Layer (HLE)
+
+Hydra uses High-Level Emulation (HLE) for Nintendo's Horizon OS:
+
+#### Kernel Services
+
+Location: `src/core/horizon/kernel/`
+
+- **Process Management**: Multi-process execution (`process.cpp`, `process_manager.cpp`)
+- **Threading**: Guest and host thread coordination (`thread.cpp`, `guest_thread.cpp`, `host_thread.cpp`)
+- **Memory**: Shared memory, transfer memory, code memory objects
+- **Synchronization**: Events and synchronization primitives
+- **IPC (HIPC)**: Inter-process communication via ports and sessions (`kernel/hipc/`)
+
+#### System Services
+
+Location: `src/core/horizon/services/`
+
+Major service implementations:
+
+<CodeGroup>
+```plaintext Core Services
+sm/         # Service manager
+fssrv/      # File system services
+visrv/      # Display/visual services
+nvdrv/      # NVIDIA driver services
+hid/        # Human interface devices (input)
+```
+
+```plaintext Application Services
+am/         # Applet manager
+audio/      # Audio renderer and output
+pl/         # Shared font manager
+account/    # User account management
+settings/   # System settings
+```
+
+```plaintext Network Services
+socket/     # BSD sockets
+nifm/       # Network interface
+ssl/        # SSL/TLS context
+```
+</CodeGroup>
+
+#### File System Layer
+
+Location: `src/core/horizon/filesystem/`
+
+- **Virtual File System**: Unified file abstraction (`filesystem.cpp`)
+- **Content Archives**: NCA file parsing (`content_archive.cpp`)
+- **RomFS**: Read-only filesystem (`romfs/`)
+- **Partition FS**: PFS0 support (`partition_filesystem.hpp`)
+- **Device Mounting**: Multi-device file access (`device.cpp`)
+
+#### Loader System
+
+Location: `src/core/horizon/loader/`
+
+Supported formats:
+- **NRO**: Nintendo Relocatable Object (homebrew) (`nro_loader.cpp`)
+- **NSO**: Nintendo Shared Object (system modules) (`nso_loader.cpp`)
+- **NCA**: Nintendo Content Archive (official games) (`nca_loader.cpp`)
+- **NX**: Custom format (`nx_loader.cpp`)
+- **NSP**: Nintendo Submission Package (`nsp_loader.cpp`)
+
+**Plugin System**: Extensible loader plugins (`loader/plugins/`)
+
+### Audio Subsystem
+
+Location: `src/core/audio/`
+
+Two audio backend implementations:
+
+- **Cubeb Backend**: Cross-platform audio (enabled by default)
+  - Location: `audio/cubeb/`
+  - Real-time audio streaming
+  - Low-latency output
+
+- **Null Backend**: Silent fallback when cubeb disabled
+  - Location: `audio/null/`
+
+### Input System
+
+Location: `src/core/input/`
+
+Input handling architecture:
+
+- **Device Manager**: Input device detection and management (`device_manager.cpp`)
+- **Profiles**: Controller configuration profiles (`profile.cpp`)
+- **Apple GameController**: Native macOS controller support (`apple_gc/`)
+- **Input Types**: Keyboard, controller, cursor support
+
+## Frontend Architecture
+
+### SDL3 Frontend
+
+Location: `src/frontend/sdl3/`
+
+- **Minimum macOS**: 13.0
+- **Window Management**: SDL3 window creation and events (`window.cpp`)
+- **Input**: SDL3 input to emulator mapping
+- **Metal Integration**: SDL3 Metal view for rendering
+
+### SwiftUI Frontend
+
+Location: `src/frontend/swiftui/`
+
+- **Minimum macOS**: 15.0
+- **Native UI**: Modern macOS interface
+- **Features**:
+  - Game library management (`GameListView.swift`)
+  - Settings interface (`settings/`)
+  - Integrated debugger UI (`debugger/`)
+  - Metal rendering view (`MetalView.swift`)
+
+### C API Bridge
+
+Location: `src/core/c_api.cpp` / `c_api.h`
+
+Provides a C interface to the C++ core, enabling:
+- Swift/Objective-C integration
+- Frontend abstraction
+- Clean separation between core and UI
+
+## External Dependencies
+
+Location: `externals/`
+
+### CPU Emulation
+- **dynarmic**: ARMv8-A dynamic recompiler
+
+### Audio
+- **cubeb**: Cross-platform audio backend
+
+### Graphics
+- **metal-cpp**: C++ wrapper for Metal API
+- **stb**: Image loading (STB libraries)
+
+### Utilities
+- **hatch**: TOML configuration parser
+- **fmt**: String formatting library
+- **toml11**: TOML11 configuration
+
+### Nintendo Formats
+- **libyaz0**: Yaz0 compression (used in Nintendo filesystems)
+- **nx2elf**: Nintendo executable conversion
+
+## Build System
+
+Hydra uses CMake (3.15+) with modular build configuration:
+
+- **Root CMake**: `CMakeLists.txt` - Project setup and dependencies
+- **Source CMake**: `src/CMakeLists.txt` - Component inclusion
+- **Core CMake**: `src/core/CMakeLists.txt` - Massive core library definition
+- **Frontend CMake**: `src/frontend/CMakeLists.txt` - Frontend selection
+
+### Compiler Requirements
+
+- **C++ Standard**: C++20
+- **Warnings**: Treated as errors (`-Werror`)
+- **Warning Flags**: `-Wall -Wextra -Wconversion -Wsign-conversion`
+
+### Platform Configuration
+
+<CodeGroup>
+```cpp Conditional Compilation
+// Hypervisor backend
+#if HYDRA_HYPERVISOR_ENABLED
+  // Use Hypervisor.framework
+#endif
+
+// Cubeb audio
+#if HYDRA_CUBEB_ENABLED
+  // Use cubeb backend
+#endif
+
+// Debug builds
+#ifdef HYDRA_DEBUG
+  // Extra logging and checks
+#endif
+```
+
+```cmake Build Options
+option(CUBEB_ENABLED "Enable cubeb audio" ON)
+option(HYPERVISOR_ENABLED "Enable Hypervisor CPU" ON)
+set(FRONTEND "SDL3" CACHE STRING "Frontend to use")
+```
+</CodeGroup>
+
+## Execution Flow
+
+### Initialization Sequence
+
+<Steps>
+  <Step title="Frontend Initialization">
+    SDL3 or SwiftUI frontend starts and creates window/Metal view
+  </Step>
+  
+  <Step title="Core Initialization">
+    Emulation context created via C API (`c_api.cpp`)
+    
+    - Initialize CPU backend (Hypervisor or Dynarmic)
+    - Initialize GPU renderer (Metal)
+    - Initialize audio core (Cubeb or Null)
+    - Initialize input manager
+  </Step>
+  
+  <Step title="OS Layer Setup">
+    Horizon OS kernel and services initialized
+    
+    - Create kernel objects
+    - Register system services
+    - Mount file systems
+  </Step>
+  
+  <Step title="Game Loading">
+    Loader parses game file and creates process
+    
+    - Detect format (NRO/NCA/NSO/NX)
+    - Parse metadata and sections
+    - Load into guest memory
+    - Create main thread
+  </Step>
+  
+  <Step title="Emulation Loop">
+    Main emulation loop executes
+    
+    - CPU: Execute guest code
+    - GPU: Process command buffers
+    - Audio: Stream audio samples
+    - Input: Poll controllers
+    - Display: Present frames
+  </Step>
+</Steps>
+
+### Service Call Flow
+
+```plaintext
+Guest Code (ARM64)
+    |
+    v
+SVC Instruction (Supervisor Call)
+    |
+    v
+Kernel IPC Handler
+    |
+    v
+Service Lookup (sm/user_interface.cpp)
+    |
+    v
+Service Implementation (e.g., fssrv/filesystem_proxy.cpp)
+    |
+    v
+Return Result to Guest
+```
+
+## Debugging Support
+
+Location: `src/core/debugger/`
+
+- **GDB Server**: Remote debugging via GDB protocol (`gdb_server.cpp`)
+- **Debugger Manager**: Multi-process debugging (`debugger_manager.cpp`)
+- **SwiftUI Integration**: Built-in debugger UI (SwiftUI frontend)
+
+## Memory Management
+
+### Guest Memory
+
+- **CPU MMU**: ARM64 memory management unit emulation (`cpu/mmu.cpp`)
+- **GPU MMU (GMMU)**: GPU memory management (`gpu/gmmu.cpp`)
+- **Shared Regions**: Host-guest shared memory for performance
+
+### Caching Strategy
+
+- **Shader Cache**: Persistent compiled shader storage
+- **Texture Cache**: GPU texture deduplication
+- **Buffer Cache**: Vertex/index buffer reuse
+- **Pipeline Cache**: Render state objects
+
+## Threading Model
+
+- **Guest Threads**: Emulated Switch threads (`kernel/guest_thread.cpp`)
+- **Host Threads**: Native macOS threads for scheduling (`kernel/host_thread.cpp`)
+- **Thread Synchronization**: Event-based sync between guest threads
+- **CPU Execution**: Per-thread execution contexts
+
+## Performance Optimizations
+
+### Apple Silicon
+
+- **Hypervisor Framework**: Native ARM64 execution
+- **Metal**: GPU-accelerated rendering
+- **Unified Memory**: Efficient host-guest memory sharing
+
+### Caching
+
+- **Shader Compilation**: One-time MSL compilation with caching
+- **Pipeline States**: Pre-compiled render states
+- **Texture Formats**: On-demand conversion with cache
+
+### Multi-threading
+
+- **GPU Command Buffer**: Async command encoding
+- **Audio Streaming**: Separate audio thread
+- **File I/O**: Async filesystem operations
+
+## Next Steps
+
+To contribute to Hydra's architecture:
+
+1. **Build from Source**: See [Building](/dev/building)
+2. **Read Contributing Guide**: [Contributing](/dev/contributing)
+3. **Explore Source Code**: Clone and examine the repository
+4. **Join Discord**: Get help from the [development community](https://discord.gg/FZ742SWv8f)

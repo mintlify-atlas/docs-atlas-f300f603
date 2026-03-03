@@ -1,0 +1,565 @@
+---
+title: 'Emulation Context'
+description: 'Core emulation management and lifecycle control'
+---
+
+## Overview
+
+The `EmulationContext` class is the heart of the Hydra emulator, managing the entire emulation lifecycle including CPU, GPU, audio, and the Horizon OS environment.
+
+It provides the interface between frontends (SwiftUI, SDL3, etc.) and the emulation core.
+
+## Class Definition
+
+```cpp
+namespace hydra {
+
+class EmulationContext {
+public:
+    EmulationContext(horizon::ui::HandlerBase& ui_handler);
+    ~EmulationContext();
+
+    void SetSurface(void* surface);
+    
+    enum class LoadAndStartError {
+        ProcessAlreadyExists,
+    };
+    
+    void LoadAndStart(horizon::loader::LoaderBase* loader);
+    void RequestStop();
+    void ForceStop();
+    
+    void Pause();
+    void Resume();
+    
+    void NotifyOperationModeChanged();
+    void ProgressFrame(u32 width, u32 height, bool& out_dt_average_updated);
+    
+    bool IsRunning() const;
+    f32 GetLastDeltaTimeAverage() const;
+    
+    void TakeScreenshot();
+    void CaptureGpuFrame();
+};
+
+}
+```
+
+Defined in `src/core/emulation_context.hpp`
+
+## Initialization
+
+### Constructor
+
+Creates a new emulation context.
+
+```cpp
+EmulationContext(horizon::ui::HandlerBase& ui_handler);
+```
+
+<ParamField path="ui_handler" type="horizon::ui::HandlerBase&" required>
+  UI handler for frontend integration (handles input, UI events, etc.)
+</ParamField>
+
+The constructor initializes:
+- CPU backend (Hypervisor or Dynarmic based on configuration)
+- GPU renderer (Metal)
+- Audio core (Cubeb or Null)
+- Horizon OS environment
+
+**Example:**
+
+```cpp
+class MyUIHandler : public hydra::horizon::ui::HandlerBase {
+    // Implement UI handler interface
+};
+
+MyUIHandler ui_handler;
+hydra::EmulationContext emulation(ui_handler);
+```
+
+### Destructor
+
+Cleans up all emulation resources.
+
+```cpp
+~EmulationContext();
+```
+
+Automatically called when the context is destroyed. Stops emulation if running and frees CPU, GPU, audio, and OS resources.
+
+## Surface Management
+
+### SetSurface
+
+Sets the rendering surface for GPU output.
+
+```cpp
+void SetSurface(void* surface);
+```
+
+<ParamField path="surface" type="void*" required>
+  Platform-specific surface pointer. On Metal, this is a `CAMetalLayer*`.
+</ParamField>
+
+Must be called before starting emulation to provide a rendering target.
+
+**SwiftUI Example:**
+
+```swift
+struct MetalView: NSViewRepresentable {
+    let context: UnsafeMutableRawPointer
+    
+    func makeNSView(context: Context) -> some NSView {
+        let view = NSView()
+        let layer = CAMetalLayer()
+        view.layer = layer
+        view.wantsLayer = true
+        
+        hydra_emulation_context_set_surface(self.context, layer)
+        
+        return view
+    }
+}
+```
+
+## Loading and Execution
+
+### LoadAndStart
+
+Loads a game and starts emulation.
+
+```cpp
+void LoadAndStart(horizon::loader::LoaderBase* loader);
+```
+
+<ParamField path="loader" type="horizon::loader::LoaderBase*" required>
+  Loader containing the game to execute (NSP, XCI, NCA, etc.)
+</ParamField>
+
+This function:
+1. Creates a new Horizon OS process
+2. Loads the game executable and data
+3. Applies any available patches
+4. Starts CPU execution
+5. Begins the emulation loop
+
+<Warning>
+Calling `LoadAndStart` when a process is already running will result in a `LoadAndStartError::ProcessAlreadyExists` error.
+</Warning>
+
+**Example:**
+
+```cpp
+auto loader = hydra::horizon::loader::LoaderBase::Create("/path/to/game.nsp");
+if (loader) {
+    try {
+        emulation.LoadAndStart(loader.get());
+    } catch (const std::exception& e) {
+        // Handle loading error
+    }
+}
+```
+
+### C API Example
+
+```c
+void* loader = hydra_create_loader_from_path(
+    (hydra_string){"/path/to/game.nsp", 18}
+);
+
+if (loader) {
+    hydra_emulation_context_load_and_start(ctx, loader);
+    hydra_loader_destroy(loader);
+}
+```
+
+## Execution Control
+
+### Pause
+
+Pauses emulation.
+
+```cpp
+void Pause();
+```
+
+Suspends CPU execution, GPU rendering, and audio output. The emulation state is preserved and can be resumed.
+
+### Resume
+
+Resumes paused emulation.
+
+```cpp
+void Resume();
+```
+
+Continues execution from where it was paused.
+
+**Example:**
+
+```cpp
+// Pause when app goes to background
+emulation.Pause();
+
+// Resume when app returns to foreground
+emulation.Resume();
+```
+
+### RequestStop
+
+Requests a graceful shutdown of emulation.
+
+```cpp
+void RequestStop();
+```
+
+Signals the emulation thread to stop. This allows the emulator to:
+- Flush save data
+- Clean up resources properly
+- Exit gracefully
+
+The emulation may take a few frames to fully stop.
+
+### ForceStop
+
+Immediately stops emulation.
+
+```cpp
+void ForceStop();
+```
+
+<Warning>
+Force stopping may cause data loss if save data hasn't been flushed. Use `RequestStop()` when possible.
+</Warning>
+
+### IsRunning
+
+Checks if emulation is currently running.
+
+```cpp
+bool IsRunning() const;
+```
+
+<ResponseField name="return" type="bool">
+  `true` if a game is loaded and executing, `false` otherwise
+</ResponseField>
+
+**Example:**
+
+```cpp
+while (emulation.IsRunning()) {
+    // Process frames
+    bool dt_updated = false;
+    emulation.ProgressFrame(1920, 1080, dt_updated);
+    
+    if (dt_updated) {
+        float fps = 1.0f / emulation.GetLastDeltaTimeAverage();
+        printf("FPS: %.1f\n", fps);
+    }
+}
+```
+
+## Frame Processing
+
+### ProgressFrame
+
+Advances emulation by one frame.
+
+```cpp
+void ProgressFrame(u32 width, u32 height, bool& out_dt_average_updated);
+```
+
+<ParamField path="width" type="u32" required>
+  Current display width in pixels
+</ParamField>
+
+<ParamField path="height" type="u32" required>
+  Current display height in pixels
+</ParamField>
+
+<ParamField path="out_dt_average_updated" type="bool&" required>
+  Output parameter set to `true` if the delta time average was recalculated this frame
+</ParamField>
+
+This function:
+1. Executes CPU instructions
+2. Processes GPU commands
+3. Renders the frame to the surface
+4. Updates timing metrics
+
+Typically called once per display refresh (60 Hz).
+
+**Example:**
+
+```cpp
+void renderLoop() {
+    while (emulation.IsRunning()) {
+        bool dt_updated = false;
+        emulation.ProgressFrame(1920, 1080, dt_updated);
+        
+        // Frame is now rendered to the surface
+    }
+}
+```
+
+### GetLastDeltaTimeAverage
+
+Gets the average frame time.
+
+```cpp
+f32 GetLastDeltaTimeAverage() const;
+```
+
+<ResponseField name="return" type="f32">
+  Average delta time in seconds per frame
+</ResponseField>
+
+Useful for calculating FPS and performance metrics:
+
+```cpp
+float avg_frame_time = emulation.GetLastDeltaTimeAverage();
+float fps = 1.0f / avg_frame_time;
+```
+
+## System Events
+
+### NotifyOperationModeChanged
+
+Notifies the emulator that the operation mode changed.
+
+```cpp
+void NotifyOperationModeChanged();
+```
+
+Call this when switching between handheld and docked mode. The emulator will:
+- Adjust resolution (720p handheld / 1080p docked)
+- Modify CPU/GPU performance profiles
+- Update the Horizon OS system state
+
+**Example:**
+
+```cpp
+// User switched to docked mode
+config.GetHandheldMode() = false;
+config.Serialize();
+emulation.NotifyOperationModeChanged();
+```
+
+## Debugging and Capture
+
+### TakeScreenshot
+
+Captures the current frame as a screenshot.
+
+```cpp
+void TakeScreenshot();
+```
+
+Screenshots are saved to the pictures directory (typically `{app_data}/pictures`).
+
+**Example:**
+
+```cpp
+// User pressed screenshot hotkey
+emulation.TakeScreenshot();
+```
+
+### CaptureGpuFrame
+
+Captures detailed GPU frame data for debugging.
+
+```cpp
+void CaptureGpuFrame();
+```
+
+This captures:
+- GPU command buffers
+- Shader code
+- Texture data
+- Render targets
+
+Useful for debugging graphics issues.
+
+## Internal Components
+
+The `EmulationContext` manages several subsystems:
+
+```cpp
+private:
+    hw::tegra_x1::cpu::ICpu* cpu;        // CPU backend
+    hw::tegra_x1::gpu::Gpu* gpu;          // GPU renderer
+    audio::ICore* audio_core;             // Audio subsystem
+    horizon::OS* os;                      // Horizon OS environment
+    horizon::kernel::Process* process;    // Active game process
+```
+
+### CPU Backend
+
+Either Apple Hypervisor (native ARM64) or Dynarmic (JIT compiler) based on configuration.
+
+### GPU Renderer
+
+Metal-based GPU emulation with shader translation from Switch GPU code.
+
+### Audio Core
+
+Cubeb-based audio output or null audio for headless operation.
+
+### Horizon OS
+
+Complete Nintendo Switch OS environment including:
+- Kernel services
+- System modules
+- Save data management
+- Account system
+
+## Integration Examples
+
+### SwiftUI Frontend
+
+```swift
+class EmulationViewModel: ObservableObject {
+    private var context: UnsafeMutableRawPointer?
+    @Published var isRunning = false
+    @Published var fps: Float = 0.0
+    
+    func loadGame(path: String) {
+        context = hydra_create_emulation_context()
+        
+        path.withHydraString { hydraPath in
+            let loader = hydra_create_loader_from_path(hydraPath)
+            defer { hydra_loader_destroy(loader) }
+            
+            hydra_emulation_context_load_and_start(context, loader)
+            isRunning = true
+        }
+    }
+    
+    func pause() {
+        hydra_emulation_context_pause(context)
+        isRunning = false
+    }
+    
+    func resume() {
+        hydra_emulation_context_resume(context)
+        isRunning = true
+    }
+    
+    func progressFrame(width: Int, height: Int) {
+        var dtUpdated = false
+        hydra_emulation_context_progress_frame(
+            context,
+            UInt32(width),
+            UInt32(height),
+            &dtUpdated
+        )
+        
+        if dtUpdated {
+            let avgDt = hydra_emulation_context_get_last_delta_time_average(context)
+            fps = 1.0 / avgDt
+        }
+    }
+    
+    deinit {
+        if let ctx = context {
+            hydra_emulation_context_destroy(ctx)
+        }
+    }
+}
+```
+
+### SDL3 Frontend
+
+```cpp
+class SDL3Frontend {
+    hydra::EmulationContext emulation;
+    SDL_Window* window;
+    bool running = true;
+    
+public:
+    SDL3Frontend() : emulation(ui_handler) {
+        window = SDL_CreateWindow(
+            "Hydra",
+            1920, 1080,
+            SDL_WINDOW_METAL
+        );
+        
+        // Set Metal surface
+        void* metal_layer = SDL_Metal_GetLayer(
+            SDL_Metal_CreateView(window)
+        );
+        emulation.SetSurface(metal_layer);
+    }
+    
+    void run(const std::string& game_path) {
+        auto loader = hydra::horizon::loader::LoaderBase::Create(game_path);
+        emulation.LoadAndStart(loader.get());
+        
+        while (running && emulation.IsRunning()) {
+            processEvents();
+            
+            int width, height;
+            SDL_GetWindowSize(window, &width, &height);
+            
+            bool dt_updated = false;
+            emulation.ProgressFrame(width, height, dt_updated);
+            
+            SDL_Metal_PresentFrame();
+        }
+    }
+    
+    void processEvents() {
+        SDL_Event event;
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_EVENT_QUIT) {
+                running = false;
+                emulation.RequestStop();
+            }
+        }
+    }
+};
+```
+
+See `src/frontend/swiftui/` and `src/frontend/sdl3/` for complete frontend implementations.
+
+## Error Handling
+
+The `EmulationContext` uses exceptions for error handling:
+
+```cpp
+try {
+    emulation.LoadAndStart(loader);
+} catch (const std::runtime_error& e) {
+    if (std::string(e.what()).find("ProcessAlreadyExists") != std::string::npos) {
+        // Handle duplicate process error
+        emulation.RequestStop();
+        // Wait for stop then retry
+    } else {
+        // Handle other errors
+    }
+}
+```
+
+## Thread Safety
+
+<Warning>
+The `EmulationContext` is **not thread-safe**. All methods must be called from the same thread (typically the main emulation thread).
+</Warning>
+
+If you need to interact with the emulator from multiple threads:
+- Use message queues or command buffers
+- Implement proper synchronization
+- Consider using the debugger API which provides explicit locking
+
+## Performance Considerations
+
+- Call `ProgressFrame()` at the display refresh rate (60 Hz)
+- Avoid blocking operations in the emulation thread
+- Use `Pause()` when the app is backgrounded to save resources
+- Monitor `GetLastDeltaTimeAverage()` to detect performance issues
+
+## See Also
+
+- [C API](/api/c-api) - C API wrapper for `EmulationContext`
+- [Configuration API](/api/configuration) - Configure emulation settings

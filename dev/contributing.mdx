@@ -1,0 +1,562 @@
+---
+title: Contributing
+description: Guidelines for contributing to the Hydra emulator project
+---
+
+## Welcome Contributors
+
+Thank you for your interest in contributing to Hydra! This guide will help you get started with contributing code, reporting issues, and collaborating with the community.
+
+## Getting Started
+
+### Prerequisites
+
+Before contributing, make sure you:
+
+1. **Build Hydra from source** - See [Building](/dev/building)
+2. **Understand the architecture** - Read [Architecture](/dev/architecture)
+3. **Join the Discord** - [Hydra Discord Server](https://discord.gg/FZ742SWv8f) for real-time discussion
+4. **Review existing issues** - Check [GitHub Issues](https://github.com/SamoZ256/hydra/issues)
+
+### Setting Up Your Development Environment
+
+<Steps>
+  <Step title="Fork the repository">
+    Create a fork of the Hydra repository on GitHub:
+
+    ```bash
+    # Click 'Fork' on https://github.com/SamoZ256/hydra
+    ```
+  </Step>
+
+  <Step title="Clone your fork">
+    Clone your fork locally:
+
+    ```bash
+    git clone https://github.com/YOUR_USERNAME/hydra.git
+    cd hydra
+    git submodule update --init --recursive
+    ```
+  </Step>
+
+  <Step title="Add upstream remote">
+    Add the original repository as upstream:
+
+    ```bash
+    git remote add upstream https://github.com/SamoZ256/hydra.git
+    ```
+  </Step>
+
+  <Step title="Build and test">
+    Ensure you can build successfully:
+
+    ```bash
+    cmake . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DMACOS_BUNDLE=ON
+    ninja -C build
+    ```
+  </Step>
+</Steps>
+
+## Code Style Guidelines
+
+Hydra follows strict code style guidelines to maintain consistency across the codebase.
+
+### C++ Code Style
+
+#### Formatting
+
+Hydra uses **clang-format** for automatic code formatting. The configuration is defined in `.clang-format`:
+
+```yaml
+DerivePointerAlignment: false
+PointerAlignment: Left
+TabWidth: 4
+IndentWidth: 4
+AlwaysBreakTemplateDeclarations: Yes
+```
+
+**Format your code before committing:**
+
+```bash
+clang-format -i src/**/*.cpp src/**/*.hpp
+```
+
+#### Naming Conventions
+
+<CodeGroup>
+```cpp Classes and Structs
+// Use PascalCase for classes and structs
+class EmulationContext {
+    // ...
+};
+
+struct GuestThread {
+    // ...
+};
+```
+
+```cpp Functions and Methods
+// Use camelCase for functions and methods
+void processCommandBuffer() {
+    // ...
+}
+
+int getTextureFormat() {
+    // ...
+}
+```
+
+```cpp Variables
+// Use snake_case for variables
+int frame_count = 0;
+bool is_running = true;
+const char* config_path = nullptr;
+```
+
+```cpp Constants and Enums
+// Use UPPER_SNAKE_CASE for constants
+constexpr int MAX_TEXTURE_SIZE = 4096;
+
+// Use PascalCase for enum classes
+enum class CpuBackend {
+    Dynarmic,
+    Hypervisor
+};
+```
+</CodeGroup>
+
+#### Pointer and Reference Alignment
+
+```cpp
+// Pointers and references aligned LEFT
+void* pointer;      // Correct
+int& reference;     // Correct
+
+void *pointer;      // Incorrect
+int &reference;     // Incorrect
+```
+
+#### Headers and Includes
+
+```cpp
+// Order: Standard library -> Third-party -> Project headers
+#include <vector>
+#include <string>
+
+#include <fmt/format.h>
+
+#include "core/emulation_context.hpp"
+#include "hw/tegra_x1/gpu/gpu.hpp"
+```
+
+### Swift Code Style (SwiftUI Frontend)
+
+```swift
+// Use Swift standard naming conventions
+class GameListView: View {
+    @State private var selectedGame: Game?
+    
+    var body: some View {
+        // ...
+    }
+    
+    func loadGames() {
+        // ...
+    }
+}
+```
+
+### CMake Style
+
+```cmake
+# Use lowercase for commands
+set(CMAKE_CXX_STANDARD 20)
+add_library(hydra-core ...)
+target_link_libraries(hydra-core PRIVATE fmt)
+
+# Use descriptive variable names
+set(FRONTEND "SDL3" CACHE STRING "Frontend to use")
+```
+
+## Compilation Requirements
+
+### Compiler Warnings
+
+Hydra treats **all warnings as errors** via `-Werror`. Ensure your code compiles without warnings:
+
+```bash
+# Enabled warning flags:
+-Wall -Wextra -Wconversion -Wsign-conversion -Wno-vla-cxx-extension
+```
+
+### C++ Standards
+
+- **Required**: C++20
+- **Features used**: Concepts, ranges, designated initializers, modules (future)
+
+```cpp
+// C++20 features are encouraged
+auto process_data(std::span<const uint8_t> data) -> void {
+    // ...
+}
+```
+
+## Development Workflow
+
+### Creating a Feature Branch
+
+<Steps>
+  <Step title="Sync with upstream">
+    ```bash
+    git fetch upstream
+    git checkout main
+    git merge upstream/main
+    ```
+  </Step>
+
+  <Step title="Create feature branch">
+    Use descriptive branch names:
+
+    ```bash
+    # Feature branches
+    git checkout -b feature/implement-audio-filter
+
+    # Bug fix branches
+    git checkout -b fix/texture-cache-crash
+
+    # Service implementation
+    git checkout -b service/implement-caps-service
+    ```
+  </Step>
+
+  <Step title="Make your changes">
+    Edit code, following style guidelines
+  </Step>
+
+  <Step title="Test your changes">
+    Build and test thoroughly:
+
+    ```bash
+    ninja -C build
+    # Test with actual games/homebrew
+    ```
+  </Step>
+</Steps>
+
+### Commit Messages
+
+Write clear, descriptive commit messages:
+
+<CodeGroup>
+```bash Good Examples
+git commit -m "gpu: Implement texture border color support"
+git commit -m "service/am: Fix application exit handling"
+git commit -m "frontend/swiftui: Add game icon caching"
+git commit -m "docs: Update build instructions for Xcode 15"
+```
+
+```bash Format
+<area>: <brief description>
+
+<detailed explanation if needed>
+
+# Examples:
+# gpu: ...
+# cpu: ...
+# service/fs: ...
+# kernel: ...
+# frontend/sdl3: ...
+# build: ...
+```
+</CodeGroup>
+
+### Commit Guidelines
+
+- **One logical change per commit**
+- **Prefix with component area** (gpu, cpu, service/xxx, frontend, build, docs)
+- **Use imperative mood** ("Add feature" not "Added feature")
+- **Keep first line under 72 characters**
+- **Add detailed explanation for complex changes**
+
+## Pull Request Process
+
+### Before Submitting
+
+<Steps>
+  <Step title="Code quality checks">
+    - Code compiles without warnings
+    - clang-format applied
+    - No debug code or commented-out sections
+    - All new code follows style guidelines
+  </Step>
+
+  <Step title="Testing">
+    - Test with multiple games/homebrew
+    - Verify no regressions
+    - Check both Debug and Release builds
+  </Step>
+
+  <Step title="Documentation">
+    - Update relevant documentation
+    - Add code comments for complex logic
+    - Document new CMake options
+  </Step>
+</Steps>
+
+### Submitting a Pull Request
+
+<Steps>
+  <Step title="Push your branch">
+    ```bash
+    git push origin feature/your-feature-name
+    ```
+  </Step>
+
+  <Step title="Create pull request">
+    Go to [https://github.com/SamoZ256/hydra/pulls](https://github.com/SamoZ256/hydra/pulls) and click "New Pull Request"
+  </Step>
+
+  <Step title="Fill out PR template">
+    **Title**: Descriptive summary
+    
+    **Description**:
+    ```markdown
+    ## Summary
+    Brief description of changes
+
+    ## Changes
+    - Implemented X feature
+    - Fixed Y bug
+    - Improved Z performance
+
+    ## Testing
+    - Tested with Game A: Works correctly
+    - Tested with Homebrew B: No regressions
+
+    ## Screenshots (if UI changes)
+    [Add screenshots]
+    ```
+  </Step>
+
+  <Step title="Respond to reviews">
+    - Address reviewer feedback promptly
+    - Push additional commits if needed
+    - Discuss design decisions in comments
+  </Step>
+</Steps>
+
+### PR Review Criteria
+
+Your PR will be reviewed for:
+
+- **Code quality**: Follows style guidelines, well-structured
+- **Correctness**: Implements feature correctly, no bugs introduced
+- **Performance**: No unnecessary performance regressions
+- **Compatibility**: Works on all supported macOS versions
+- **Documentation**: Code is well-commented and documented
+
+## Areas for Contribution
+
+### High Priority
+
+- **Service implementations**: Many system services need implementation
+- **GPU accuracy**: Improve Maxwell emulation accuracy
+- **Performance**: Optimize hot paths
+- **Game compatibility**: Fix issues with specific games
+
+### Service Implementation
+
+To implement a new service:
+
+1. Check `src/core/horizon/services/` for existing patterns
+2. Create service class inheriting from `Service`
+3. Implement IPC command handlers
+4. Register service in service manager
+5. Test with games that use the service
+
+### GPU Features
+
+To add GPU features:
+
+1. Study Maxwell architecture documentation
+2. Locate relevant engine code (`src/core/hw/tegra_x1/gpu/engines/`)
+3. Implement in Metal renderer (`src/core/hw/tegra_x1/gpu/renderer/metal/`)
+4. Update shader decompiler if needed
+
+### Frontend Improvements
+
+- **SDL3**: Improve controller support, add hotkeys
+- **SwiftUI**: Enhance UI/UX, add features
+
+## Testing Guidelines
+
+### Manual Testing
+
+Test your changes with:
+
+1. **Homebrew apps**: Simple test cases
+2. **Commercial games**: Real-world testing
+3. **Edge cases**: Unusual configurations
+
+### Regression Testing
+
+- Verify previously working games still work
+- Test both frontends (SDL3 and SwiftUI)
+- Test Debug and Release builds
+
+### Performance Testing
+
+```bash
+# Profile with Instruments
+open -a Instruments build/bin/Hydra.app
+
+# Check for memory leaks
+leaks -atExit -- build/bin/Hydra.app
+```
+
+## Debugging
+
+### GDB Debugger
+
+Hydra includes a built-in GDB server:
+
+```bash
+# Enable in config.toml
+[debugger]
+enabled = true
+port = 1234
+
+# Connect with LLDB
+lldb
+(lldb) gdb-remote localhost:1234
+```
+
+### Xcode Debugging
+
+```bash
+# Generate Xcode project
+cmake . -B build -G Xcode
+open build/hydra.xcodeproj
+```
+
+### Logging
+
+Use `fmt::print` for debug logging:
+
+```cpp
+#ifdef HYDRA_DEBUG
+    fmt::print("[GPU] Texture format: {}\n", format);
+#endif
+```
+
+## Communication
+
+### Discord Server
+
+Join the [Hydra Discord](https://discord.gg/FZ742SWv8f) for:
+
+- Development discussion
+- Technical questions
+- Coordination on features
+- Community support
+
+### GitHub Discussions
+
+Use [GitHub Discussions](https://github.com/SamoZ256/hydra/discussions) for:
+
+- Feature proposals
+- Architecture discussions
+- Long-form technical topics
+
+### Issue Tracker
+
+Use [GitHub Issues](https://github.com/SamoZ256/hydra/issues) for:
+
+- Bug reports
+- Feature requests
+- Tracking work
+
+## Reporting Issues
+
+When reporting bugs, include:
+
+<Steps>
+  <Step title="System information">
+    - macOS version
+    - Hardware (Intel vs Apple Silicon)
+    - Hydra version/commit hash
+  </Step>
+
+  <Step title="Reproduction steps">
+    1. Clear steps to reproduce
+    2. Expected behavior
+    3. Actual behavior
+  </Step>
+
+  <Step title="Additional context">
+    - Game/homebrew name and version
+    - Screenshots/videos if applicable
+    - Relevant logs
+    - Config file (if customized)
+  </Step>
+</Steps>
+
+## License
+
+Hydra is licensed under **GPL-3.0**. By contributing, you agree that your contributions will be licensed under the same license.
+
+Key points:
+
+- All contributions must be compatible with GPL-3.0
+- Original code must be your own or properly attributed
+- Third-party code must have compatible licenses
+
+## Code of Conduct
+
+### Be Respectful
+
+- Treat all contributors with respect
+- Welcome newcomers
+- Provide constructive feedback
+- Be patient with questions
+
+### Be Collaborative
+
+- Discuss design decisions openly
+- Accept feedback gracefully
+- Help review others' contributions
+- Share knowledge
+
+### Quality Standards
+
+- Write clean, maintainable code
+- Test thoroughly before submitting
+- Document complex logic
+- Follow established patterns
+
+## Resources
+
+### Documentation
+
+- **Building Guide**: [Building from Source](/dev/building)
+- **Architecture**: [System Architecture](/dev/architecture)
+- **GitHub**: [SamoZ256/hydra](https://github.com/SamoZ256/hydra)
+
+### External Resources
+
+- **Nintendo Switch Homebrew**: [switchbrew.org](https://switchbrew.org)
+- **Metal Documentation**: [Apple Metal](https://developer.apple.com/metal/)
+- **ARM Architecture**: [ARM Developer](https://developer.arm.com/)
+- **Maxwell GPU**: NVIDIA documentation
+
+### Community
+
+- **Discord**: [Join Server](https://discord.gg/FZ742SWv8f)
+- **GitHub Issues**: [Issue Tracker](https://github.com/SamoZ256/hydra/issues)
+- **GitHub Discussions**: [Discussions](https://github.com/SamoZ256/hydra/discussions)
+
+## Thank You
+
+Your contributions make Hydra better for everyone. Whether you're fixing bugs, implementing features, improving documentation, or helping other users, your efforts are appreciated!
+
+Happy coding, and welcome to the Hydra development community!

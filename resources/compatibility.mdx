@@ -1,0 +1,148 @@
+---
+title: 'Game Compatibility'
+description: 'Learn about game compatibility in Hydra and what affects emulation performance'
+---
+
+## Compatibility Overview
+
+Hydra is an experimental Nintendo Switch emulator for macOS that is still in very early stages of development. While some games and homebrew applications work perfectly, most titles will either crash or have issues that make them unplayable.
+
+<Warning>
+Compatibility is limited as Hydra is in active development. Expect frequent changes and improvements.
+</Warning>
+
+## Supported Formats
+
+Hydra currently supports the following Nintendo Switch file formats:
+
+- **NRO** - Homebrew executable format
+- **NCA** - Nintendo Content Archive
+- **NX** - Alternative format
+
+<Note>
+NSP files are not directly supported. You can convert NSP to NCA using [switch-extract-macos](https://github.com/SamoZ256/switch-extract-macos) or NSP to NX using [herakles](https://github.com/SamoZ256/herakles).
+</Note>
+
+## Factors Affecting Compatibility
+
+Several factors influence whether a game will run properly in Hydra:
+
+### 1. Firmware Files
+
+Many games require decrypted firmware files from a Nintendo Switch console to function properly. Without these files, games may crash or fail to load.
+
+- Firmware files must be decrypted using [switch-extract-macos](https://github.com/SamoZ256/switch-extract-macos)
+- Configure the firmware path in `~/Library/Application Support/Hydra/config.toml`
+
+### 2. Game Patches
+
+Official games require patches to prevent crashes during emulation.
+
+- Download patches from [hydra-patches](https://github.com/SamoZ256/hydra-patches)
+- Follow the installation guide included in the patches repository
+
+### 3. System Requirements
+
+Your Mac's hardware capabilities affect performance and compatibility:
+
+- **GPU**: Metal-compatible graphics required
+- **CPU**: Modern Apple Silicon or Intel processor recommended
+- **RAM**: Sufficient memory for game requirements
+- **macOS Version**: Up-to-date macOS installation
+
+### 4. Emulator Maturity
+
+As an experimental emulator, Hydra's compatibility improves with each update:
+
+- Core emulation features are still being implemented
+- Graphics rendering may have artifacts or errors
+- Audio emulation may be incomplete
+- Input handling is being refined
+
+## Known Limitations
+
+Current limitations you should be aware of:
+
+<CardGroup cols={2}>
+  <Card title="Platform Support" icon="apple">
+    macOS only - no Windows or Linux support
+  </Card>
+  <Card title="File Formats" icon="file">
+    NSP files require conversion before use
+  </Card>
+  <Card title="Game Coverage" icon="gamepad">
+    Most commercial games have compatibility issues
+  </Card>
+  <Card title="Performance" icon="gauge">
+    Performance varies widely by game and hardware
+  </Card>
+</CardGroup>
+
+## Testing Game Compatibility
+
+To test if a game works with Hydra:
+
+1. Ensure you have the required firmware files (if needed)
+2. Install necessary patches for official games
+3. Convert your game to a supported format (NRO, NCA, or NX)
+4. Launch the game through Hydra
+5. Note any crashes, graphical glitches, or performance issues
+
+## Reporting Compatibility Issues
+
+Your feedback helps improve Hydra's compatibility. When reporting issues:
+
+### Before Reporting
+
+- Search existing issues to avoid duplicates
+- Verify you're using the latest Hydra release
+- Ensure firmware and patches are correctly installed
+- Test with a clean configuration if possible
+
+### What to Include
+
+<Steps>
+  <Step title="Game Information">
+    Specify the game title, version, and file format (NRO/NCA/NX)
+  </Step>
+  <Step title="System Details">
+    Include your macOS version, hardware specs (CPU, GPU, RAM)
+  </Step>
+  <Step title="Hydra Version">
+    Note the Hydra version or commit hash you're using
+  </Step>
+  <Step title="Issue Description">
+    Describe what happens: crashes, graphical issues, performance problems, etc.
+  </Step>
+  <Step title="Steps to Reproduce">
+    Provide clear steps to reproduce the issue
+  </Step>
+  <Step title="Logs and Screenshots">
+    Attach relevant logs, error messages, or screenshots
+  </Step>
+</Steps>
+
+### Where to Report
+
+Report compatibility issues on GitHub:
+
+<Card
+  title="Report an Issue"
+  icon="github"
+  href="https://github.com/SamoZ256/hydra/issues"
+>
+  Visit the Hydra GitHub repository to report bugs and compatibility issues
+</Card>
+
+## Improving Compatibility
+
+Compatibility will improve as Hydra develops. You can help by:
+
+- Testing games and reporting detailed compatibility information
+- Contributing code improvements and bug fixes
+- Providing feedback on the Discord server
+- Supporting development through GitHub stars and community engagement
+
+<Info>
+For development discussions and real-time support, join the [Discord server](https://discord.gg/FZ742SWv8f).
+</Info>

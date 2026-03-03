@@ -1,0 +1,185 @@
+---
+title: 'Frequently Asked Questions'
+description: 'Common questions about Hydra Nintendo Switch emulator for macOS'
+---
+
+## General Questions
+
+<AccordionGroup>
+  <Accordion title="What is Hydra?">
+    Hydra is an experimental Nintendo Switch emulator for macOS. It allows you to run Nintendo Switch games and homebrew applications on your Mac. The project is still in early development stages, with limited compatibility but active ongoing development.
+  </Accordion>
+
+  <Accordion title="Is Hydra legal?">
+    Yes, emulators are legal. However, you must own the games you emulate and dump them from your own Nintendo Switch console. Downloading game files (ROMs) you don't own is illegal. Additionally, you must obtain firmware files and encryption keys from your own Switch console.
+  </Accordion>
+
+  <Accordion title="How mature is Hydra?">
+    Hydra is in very early experimental stages. While some games and homebrew apps work perfectly, most commercial games will either crash or have issues that make them unplayable. The emulator is under active development with frequent improvements.
+  </Accordion>
+
+  <Accordion title="Is Hydra free?">
+    Yes, Hydra is completely free and open-source software licensed under GPL-3.0. You can download it, use it, and even modify it without any cost.
+  </Accordion>
+</AccordionGroup>
+
+## System Requirements
+
+<AccordionGroup>
+  <Accordion title="Why is Hydra macOS only?">
+    Hydra is specifically designed for macOS and uses Metal graphics API, which is Apple's proprietary graphics framework. The emulator is optimized for macOS and takes advantage of platform-specific features. There are currently no plans for Windows or Linux versions.
+  </Accordion>
+
+  <Accordion title="What macOS versions are supported?">
+    Hydra requires a modern version of macOS with Metal support. While specific minimum requirements aren't documented, it's recommended to use the latest stable macOS version for best compatibility and performance. Both Intel and Apple Silicon Macs are supported.
+  </Accordion>
+
+  <Accordion title="Do I need a powerful Mac to run Hydra?">
+    System requirements vary by game. More demanding Switch games will require better hardware. Generally, you'll need:
+    
+    - A Metal-compatible GPU (most modern Macs)
+    - Sufficient RAM (8GB minimum, 16GB+ recommended)
+    - Modern CPU (Apple Silicon or recent Intel processor)
+    - Available storage for games and firmware files
+  </Accordion>
+
+  <Accordion title="Does Hydra work better on Apple Silicon or Intel?">
+    Both Apple Silicon and Intel Macs are supported. Apple Silicon Macs may offer better performance and efficiency due to their modern architecture, but compatibility depends more on the specific game and emulator implementation than the CPU architecture.
+  </Accordion>
+</AccordionGroup>
+
+## Setup and Configuration
+
+<AccordionGroup>
+  <Accordion title="What file formats does Hydra support?">
+    Hydra supports three Nintendo Switch file formats:
+    
+    - **NRO** - Homebrew executable format
+    - **NCA** - Nintendo Content Archive
+    - **NX** - Alternative format
+    
+    NSP files are not directly supported but can be converted to NCA using [switch-extract-macos](https://github.com/SamoZ256/switch-extract-macos) or to NX using [herakles](https://github.com/SamoZ256/herakles).
+  </Accordion>
+
+  <Accordion title="Do I need firmware files?">
+    Yes, many games require decrypted firmware files from a Nintendo Switch console to function properly. You can decrypt firmware files using [switch-extract-macos](https://github.com/SamoZ256/switch-extract-macos). Configure the firmware path in `~/Library/Application Support/Hydra/config.toml`.
+  </Accordion>
+
+  <Accordion title="What are game patches and do I need them?">
+    Game patches are modifications that prevent crashes when running official games in Hydra. You'll need to download patches from [hydra-patches](https://github.com/SamoZ256/hydra-patches) and follow the installation guide. Patches are essential for running most commercial games.
+  </Accordion>
+
+  <Accordion title="Where is the Hydra configuration file?">
+    The configuration file is located at `~/Library/Application Support/Hydra/config.toml`. This file is created automatically after launching Hydra at least once. You can edit it to configure firmware paths, graphics settings, and other options.
+  </Accordion>
+
+  <Accordion title="Can I use the SwiftUI frontend instead of SDL3?">
+    Yes, Hydra can be built with either SDL3 or SwiftUI frontend. To use SwiftUI, build with the `-DFRONTEND=SwiftUI` CMake option. The SDL3 frontend is the default.
+  </Accordion>
+</AccordionGroup>
+
+## Performance and Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Why is my game running slowly?">
+    Performance issues can have several causes:
+    
+    - Your Mac hardware may not meet the game's requirements
+    - The game may not be well optimized in Hydra yet
+    - Graphics settings may need adjustment
+    - Background applications consuming resources
+    - Missing or incorrect firmware files
+    
+    Try closing other applications, checking your configuration, and ensuring you're using the latest Hydra version.
+  </Accordion>
+
+  <Accordion title="My game crashes on launch. What should I do?">
+    Common solutions for crashes:
+    
+    1. Ensure you have the required firmware files installed
+    2. Install game patches from [hydra-patches](https://github.com/SamoZ256/hydra-patches)
+    3. Verify your game file isn't corrupted
+    4. Check that the game format is supported (NRO/NCA/NX)
+    5. Update to the latest Hydra version
+    6. Report the issue on [GitHub](https://github.com/SamoZ256/hydra/issues) with details
+  </Accordion>
+
+  <Accordion title="I see graphical glitches. Is this normal?">
+    Yes, graphical glitches are common in early-stage emulators. Hydra is still in experimental development, and graphics rendering is being actively improved. Report specific issues on GitHub to help developers prioritize fixes.
+  </Accordion>
+
+  <Accordion title="Does Hydra support multiplayer or online features?">
+    This isn't explicitly documented, but as an early-stage emulator, online features and multiplayer are likely not implemented yet. Focus is currently on single-player game compatibility and core emulation accuracy.
+  </Accordion>
+
+  <Accordion title="Can I use controllers with Hydra?">
+    Controller support depends on SDL3 input handling. Most standard game controllers that work with macOS should be compatible, but specific controller support may vary. Check the configuration file for input settings.
+  </Accordion>
+</AccordionGroup>
+
+## Development and Contributing
+
+<AccordionGroup>
+  <Accordion title="How can I contribute to Hydra?">
+    Contributions are very welcome! You can:
+    
+    - Submit pull requests with bug fixes or features
+    - Report bugs and compatibility issues on GitHub
+    - Test games and provide compatibility feedback
+    - Join the [Discord server](https://discord.gg/FZ742SWv8f) for development discussions
+    - Improve documentation
+    - Star the project on GitHub to show support
+  </Accordion>
+
+  <Accordion title="What programming languages is Hydra written in?">
+    While not explicitly stated in the documentation, Hydra is built with CMake and uses C++ (common for emulators). It uses Metal for graphics rendering and can be built with either SDL3 or SwiftUI for the frontend.
+  </Accordion>
+
+  <Accordion title="Where can I get help with development?">
+    For development help:
+    
+    - Join the official [Discord server](https://discord.gg/FZ742SWv8f)
+    - Open discussions on [GitHub](https://github.com/SamoZ256/hydra)
+    - Check existing issues and pull requests
+    - Review the source code and documentation
+  </Accordion>
+
+  <Accordion title="How do I build Hydra from source?">
+    See the [Building from Source](/dev/building) page for complete build instructions. You'll need to:
+    
+    1. Install dependencies (cmake, ninja, sdl3, fmt) via Homebrew
+    2. Clone the repository and update submodules
+    3. Configure with CMake
+    4. Build with Ninja
+    
+    The build process creates a macOS app bundle at `build/bin/Hydra.app`.
+  </Accordion>
+
+  <Accordion title="What license is Hydra released under?">
+    Hydra is released under the GPL-3.0 (GNU General Public License version 3.0) open-source license. This means you can freely use, modify, and distribute the software, but any modifications must also be released under GPL-3.0.
+  </Accordion>
+</AccordionGroup>
+
+## Getting Help
+
+<AccordionGroup>
+  <Accordion title="Where can I get support?">
+    Support is available through:
+    
+    - [Discord server](https://discord.gg/FZ742SWv8f) for real-time help
+    - [GitHub Issues](https://github.com/SamoZ256/hydra/issues) for bug reports
+    - [GitHub Discussions](https://github.com/SamoZ256/hydra) for questions
+    - This documentation for guides and references
+  </Accordion>
+
+  <Accordion title="How do I report a bug?">
+    To report a bug:
+    
+    1. Search existing issues to avoid duplicates
+    2. Open a new issue on [GitHub](https://github.com/SamoZ256/hydra/issues)
+    3. Include your macOS version and hardware specs
+    4. Describe the problem with steps to reproduce
+    5. Attach logs, screenshots, or error messages
+    6. Specify the Hydra version you're using
+  </Accordion>
+</AccordionGroup>

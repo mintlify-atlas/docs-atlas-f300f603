@@ -1,0 +1,349 @@
+---
+title: GPU Rendering
+description: Understanding Hydra's Metal-based GPU rendering pipeline and shader compilation
+---
+
+Hydra uses Apple's Metal graphics API to render Nintendo Switch games on macOS. The rendering system includes sophisticated shader translation and a high-performance command buffer system.
+
+## Metal Rendering Pipeline
+
+The Metal renderer handles all GPU operations, from shader compilation to final frame presentation.
+
+### Architecture Overview
+
+<CodeGroup>
+```cpp src/core/hw/tegra_x1/gpu/renderer/metal/renderer.hpp
+class Renderer : public RendererBase {
+  public:
+    // Surface
+    void SetSurface(void* surface) override;
+    ISurfaceCompositor* AcquireNextSurface() override;
+
+    // Buffer management
+    BufferBase* CreateBuffer(u64 size) override;
+    BufferBase* AllocateTemporaryBuffer(const u64 size) override;
+    
+    // Texture operations
+    TextureBase* CreateTexture(const TextureDescriptor& descriptor) override;
+    
+    // Shader compilation
+    ShaderBase* CreateShader(const ShaderDescriptor& descriptor) override;
+    
+    // Pipeline state
+    PipelineBase* CreatePipeline(const PipelineDescriptor& descriptor) override;
+    void BindPipeline(const PipelineBase* pipeline) override;
+    
+    // Draw commands
+    void Draw(ICommandBuffer* command_buffer,
+              const engines::PrimitiveType primitive_type,
+              const u32 start, const u32 count,
+              const u32 base_instance, const u32 instance_count) override;
+              
+  private:
+    MTL::Device* device;
+    MTL::CommandQueue* command_queue;
+    CA::MetalLayer* layer;
+};
+```
+</CodeGroup>
+
+### Key Components
+
+<AccordionGroup>
+  <Accordion title="Metal Device & Command Queue" icon="microchip">
+    The renderer maintains a Metal device and command queue for GPU operations:
+    
+    ```cpp
+    MTL::Device* device;
+    MTL::CommandQueue* command_queue;
+    ```
+    
+    All rendering commands are submitted through the command queue to the GPU.
+  </Accordion>
+
+  <Accordion title="State Management" icon="sliders">
+    The renderer tracks the current rendering state including:
+    
+    ```cpp
+    struct State {
+        const RenderPass* render_pass;
+        Viewport viewports[VIEWPORT_COUNT];
+        Scissor scissors[VIEWPORT_COUNT];
+        const Pipeline* pipeline;
+        BufferView index_buffer;
+        std::array<BufferView, VERTEX_ARRAY_COUNT> vertex_buffers;
+        std::array<std::array<BufferView, CONST_BUFFER_BINDING_COUNT>,
+                   usize(ShaderType::Count)> uniform_buffers;
+        std::array<std::array<CombinedTextureSampler, TEXTURE_BINDING_COUNT>,
+                   usize(ShaderType::Count)> textures;
+    };
+    ```
+  </Accordion>
+
+  <Accordion title="Pipeline Caches" icon="database">
+    Multiple caches optimize pipeline state creation:
+    
+    ```cpp
+    DepthStencilStateCache* depth_stencil_state_cache;
+    BlitPipelineCache* blit_pipeline_cache;
+    ClearColorPipelineCache* clear_color_pipeline_cache;
+    ClearDepthPipelineCache* clear_depth_pipeline_cache;
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Shader Compilation
+
+Hydra supports two shader backends for compiling Nintendo Switch shaders to Metal:
+
+<CardGroup cols={2}>
+  <Card title="MSL Backend" icon="code" iconType="solid">
+    Translates shaders to Metal Shading Language source code
+  </Card>
+  <Card title="AIR Backend" icon="binary" iconType="solid">
+    Uses Apple Intermediate Representation for optimized performance
+  </Card>
+</CardGroup>
+
+### Metal Shading Language (MSL)
+
+The MSL backend converts Nintendo Switch GPU shaders to Metal Shading Language source code, which is then compiled at runtime.
+
+<CodeGroup>
+```cpp src/core/hw/tegra_x1/gpu/renderer/metal/shader.cpp
+Shader::Shader(const ShaderDescriptor& descriptor) : ShaderBase(descriptor) {
+    // Compile options
+    MTL::CompileOptions* options = MTL::CompileOptions::alloc()->init();
+    if (true) // Configurable
+        options->setPreserveInvariance(true);
+    
+    // MSL compilation
+    switch (descriptor.backend) {
+    case ShaderBackend::Msl: {
+        // Convert shader code to string
+        std::string source;
+        source.assign(descriptor.code.begin(), descriptor.code.end());
+        
+        // Compile MSL source to Metal library
+        NS::Error* error;
+        library = METAL_RENDERER_INSTANCE.GetDevice()->newLibrary(
+            ToNSString(source), options, &error);
+        if (error) {
+            LOG_ERROR(MetalRenderer, "Failed to create Metal library: {}",
+                      error->localizedDescription()->utf8String());
+            return;
+        }
+        break;
+    }
+    }
+    
+    // Extract main function
+    function = library->newFunction(ToNSString("main_"));
+    library->release();
+}
+```
+</CodeGroup>
+
+#### MSL Features
+
+<AccordionGroup>
+  <Accordion title="Runtime Compilation" icon="clock">
+    MSL shaders are compiled at runtime, allowing for:
+    - Dynamic shader modifications
+    - Easier debugging with readable source code
+    - Shader hot-reloading during development
+  </Accordion>
+
+  <Accordion title="Invariance Preservation" icon="equals">
+    The compiler preserves invariance to ensure consistent results:
+    
+    ```cpp
+    options->setPreserveInvariance(true);
+    ```
+    
+    This is critical for maintaining visual accuracy across different GPUs.
+  </Accordion>
+
+  <Accordion title="Fast Math (Optional)" icon="calculator">
+    Fast math optimizations can be enabled for performance:
+    
+    ```cpp
+    options->setFastMathEnabled(true); // Configurable
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Apple Intermediate Representation (AIR)
+
+The AIR backend uses Apple's intermediate representation format for potentially better performance.
+
+<CodeGroup>
+```cpp src/core/hw/tegra_x1/gpu/renderer/metal/shader.cpp
+case ShaderBackend::Air: {
+    // Create dispatch data from AIR binary
+    auto dispatch_data =
+        dispatch_data_create(descriptor.code.data(), 
+                           descriptor.code.size(),
+                           dispatch_get_global_queue(0, 0),
+                           ^{});
+    
+    // Load AIR library
+    NS::Error* error;
+    library = METAL_RENDERER_INSTANCE.GetDevice()->newLibrary(
+        dispatch_data, &error);
+    if (error) {
+        LOG_ERROR(MetalRenderer, "Failed to create Metal library: {}",
+                  error->localizedDescription()->utf8String());
+        return;
+    }
+    break;
+}
+```
+</CodeGroup>
+
+#### AIR Features
+
+<AccordionGroup>
+  <Accordion title="Pre-compiled Shaders" icon="bolt">
+    AIR shaders are pre-compiled to an intermediate format:
+    - Faster load times (no runtime compilation)
+    - Reduced CPU overhead during shader loading
+    - More consistent performance
+  </Accordion>
+
+  <Accordion title="Binary Format" icon="file-binary">
+    AIR uses a binary format that's loaded directly:
+    
+    ```cpp
+    auto dispatch_data = dispatch_data_create(
+        descriptor.code.data(), descriptor.code.size(), ...);
+    ```
+  </Accordion>
+
+  <Accordion title="Metal Optimization" icon="gauge-high">
+    AIR benefits from Apple's shader compiler optimizations:
+    - Better instruction scheduling
+    - Improved register allocation
+    - GPU-specific optimizations
+  </Accordion>
+</AccordionGroup>
+
+## Shader Backend Comparison
+
+<Tabs>
+  <Tab title="MSL">
+    **Pros:**
+    - Easier to debug (human-readable)
+    - Better for development
+    - Supports runtime modifications
+    - No pre-compilation step needed
+    
+    **Cons:**
+    - Runtime compilation overhead
+    - Slightly slower initial load
+    - More CPU usage during shader creation
+  </Tab>
+  
+  <Tab title="AIR">
+    **Pros:**
+    - Faster loading (pre-compiled)
+    - Lower CPU overhead
+    - Better runtime performance
+    - Optimized by Metal compiler
+    
+    **Cons:**
+    - Harder to debug (binary format)
+    - Requires pre-compilation
+    - Less flexible for development
+  </Tab>
+</Tabs>
+
+## Render Pass System
+
+The renderer uses a sophisticated render pass system to manage rendering operations:
+
+```cpp
+void BindRenderPass(const RenderPassBase* render_pass) override;
+RenderPassBase* CreateRenderPass(const RenderPassDescriptor& descriptor) override;
+```
+
+<Info>
+  Render passes group related drawing operations together for optimal GPU performance.
+</Info>
+
+## Resource Binding
+
+Hydra's Metal renderer supports efficient resource binding:
+
+<CodeGroup>
+```cpp Vertex Buffers
+void BindVertexBuffer(const BufferView& buffer, u32 index);
+```
+
+```cpp Uniform Buffers
+void BindUniformBuffer(const BufferView& buffer, 
+                       ShaderType shader_type, u32 index);
+```
+
+```cpp Textures
+void BindTexture(TextureBase* texture, SamplerBase* sampler,
+                 ShaderType shader_type, u32 index);
+```
+</CodeGroup>
+
+## Drawing Operations
+
+The renderer supports both indexed and non-indexed drawing:
+
+```cpp
+// Non-indexed drawing
+void Draw(ICommandBuffer* command_buffer,
+          const engines::PrimitiveType primitive_type,
+          const u32 start, const u32 count,
+          const u32 base_instance, const u32 instance_count);
+
+// Indexed drawing
+void DrawIndexed(ICommandBuffer* command_buffer,
+                 const engines::PrimitiveType primitive_type,
+                 const u32 start, const u32 count,
+                 const u32 base_vertex, const u32 base_instance,
+                 const u32 instance_count);
+```
+
+## Performance Considerations
+
+<CardGroup cols={2}>
+  <Card title="Shader Caching" icon="database">
+    Compiled shaders are cached to avoid recompilation
+  </Card>
+  <Card title="Pipeline Caching" icon="layer-group">
+    Pipeline states are cached for fast switching
+  </Card>
+  <Card title="Command Buffers" icon="list">
+    Commands are batched for efficient GPU submission
+  </Card>
+  <Card title="Resource Pooling" icon="recycle">
+    Temporary resources are pooled and reused
+  </Card>
+</CardGroup>
+
+## Graphics Capture Support
+
+The renderer supports Metal frame capture for debugging:
+
+```cpp
+void BeginCapture() override;
+void EndCapture() override;
+```
+
+<Tip>
+  Use Xcode's Metal debugger to capture and analyze frames rendered by Hydra.
+</Tip>
+
+## Configuration
+
+The shader backend is configured in the settings:
+- **MSL**: Best for development and debugging
+- **AIR**: Best for performance and release builds
+
+See the [Configuration](/getting-started/configuration) page for details on the `shader_backend` option.
