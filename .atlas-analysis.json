@@ -1,0 +1,99 @@
+{
+  "projectType": "saas",
+  "projectName": "Hydra",
+  "projectDescription": "An experimental Nintendo Switch emulator for macOS with advanced CPU and GPU backends.",
+  "theme": "aspen",
+  "primaryColor": "#e60012",
+  "lightColor": "#ff4554",
+  "darkColor": "#b30010",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "User Guide",
+            "pages": [
+              "guide/configuration",
+              "guide/running-games",
+              "guide/controls",
+              "guide/firmware",
+              "guide/troubleshooting"
+            ]
+          },
+          {
+            "group": "Features",
+            "pages": [
+              "features/cpu-backends",
+              "features/gpu-rendering",
+              "features/audio",
+              "features/resolution",
+              "features/debugging"
+            ]
+          },
+          {
+            "group": "Resources",
+            "pages": [
+              "resources/compatibility",
+              "resources/faq",
+              "resources/community"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Development",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "dev/building",
+              "dev/architecture",
+              "dev/contributing"
+            ]
+          },
+          {
+            "group": "API Reference",
+            "pages": [
+              "api/c-api",
+              "api/configuration",
+              "api/emulation-context"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Apple Hypervisor and Dynarmic CPU backends for optimal performance",
+    "Metal-based GPU rendering with MSL and AIR shader compilation",
+    "Multiple resolution options from 720p to 8K",
+    "Cubeb audio backend for high-quality sound",
+    "NRO, NCA, and NX format support",
+    "SwiftUI and SDL3 frontend options",
+    "GDB debugging support",
+    "Firmware and save data management"
+  ],
+  "publicApiSurface": [
+    "hydra_context_t - Main emulation context",
+    "hydra_context_create() - Initialize emulator",
+    "hydra_context_run() - Execute emulation",
+    "hydra_context_pause() - Pause emulation",
+    "hydra_context_stop() - Stop emulation",
+    "HydraCpuBackend - CPU backend selection",
+    "HydraGpuRenderer - GPU renderer selection",
+    "HydraShaderBackend - Shader backend selection",
+    "HydraResolution - Display resolution options",
+    "HydraAudioBackend - Audio backend selection",
+    "Config::GetInstance() - Configuration singleton",
+    "EmulationContext - Core emulation management"
+  ]
+}
